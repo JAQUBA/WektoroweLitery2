@@ -25,6 +25,12 @@ static std::string trim(const std::string& s) {
     return s.substr(start, end - start + 1);
 }
 
+static double parseDouble(const std::string& s) {
+    std::string tmp = trim(s);
+    std::replace(tmp.begin(), tmp.end(), ',', '.');
+    return std::stod(tmp);
+}
+
 static std::vector<std::string> split(const std::string& s, char sep) {
     std::vector<std::string> tokens;
     std::istringstream ss(s);
@@ -38,6 +44,15 @@ static std::string toLower(const std::string& s) {
     std::string result = s;
     std::transform(result.begin(), result.end(), result.begin(), ::tolower);
     return result;
+}
+
+static void stripUtf8BOM(std::string& s) {
+    if (s.size() >= 3 &&
+        static_cast<unsigned char>(s[0]) == 0xEF &&
+        static_cast<unsigned char>(s[1]) == 0xBB &&
+        static_cast<unsigned char>(s[2]) == 0xBF) {
+        s.erase(0, 3);
+    }
 }
 
 Document DocumentParser::parseFile(const std::string& fileName,
@@ -58,7 +73,12 @@ Document DocumentParser::parseFile(const std::string& fileName,
     if (!file.is_open()) return doc;
 
     std::string line;
+    bool firstLine = true;
     while (std::getline(file, line)) {
+        if (firstLine) {
+            stripUtf8BOM(line);
+            firstLine = false;
+        }
         line = trim(line);
         if (line.empty()) continue;
 
@@ -71,18 +91,18 @@ Document DocumentParser::parseFile(const std::string& fileName,
             case 'p': {
                 // Laser mode parameters
                 doc.laserMode = true;
-                if (row.size() > 1) doc.millingDiameter_mm = std::stod(row[1]);
-                if (row.size() > 2) doc.stepover_mm = std::stod(row[2]);
+                if (row.size() > 1) doc.millingDiameter_mm = parseDouble(row[1]);
+                if (row.size() > 2) doc.stepover_mm = parseDouble(row[2]);
                 break;
             }
 
             case 'f': {
                 // Milling mode parameters
-                if (row.size() > 1) doc.millingDiameter_mm = std::stod(row[1]);
-                if (row.size() > 2) doc.stepover_mm = std::stod(row[2]);
-                if (row.size() > 3) doc.idleDepth_mm = std::stod(row[3]);
-                if (row.size() > 4) doc.workingDepth_mm = std::stod(row[4]);
-                if (row.size() > 5) doc.cuttingDepth_mm = std::stod(row[5]);
+                if (row.size() > 1) doc.millingDiameter_mm = parseDouble(row[1]);
+                if (row.size() > 2) doc.stepover_mm = parseDouble(row[2]);
+                if (row.size() > 3) doc.idleDepth_mm = parseDouble(row[3]);
+                if (row.size() > 4) doc.workingDepth_mm = parseDouble(row[4]);
+                if (row.size() > 5) doc.cuttingDepth_mm = parseDouble(row[5]);
                 break;
             }
 
@@ -101,14 +121,14 @@ Document DocumentParser::parseFile(const std::string& fileName,
                 currentPlate.diameter = doc.millingDiameter_mm;
                 currentPlate.stepover = doc.stepover_mm;
 
-                if (row.size() > 1) frameW = std::stod(row[1]);
-                if (row.size() > 2) frameH = std::stod(row[2]);
-                if (row.size() > 3) shiftX = std::stod(row[3]);
-                if (row.size() > 4) shiftY = std::stod(row[4]);
+                if (row.size() > 1) frameW = parseDouble(row[1]);
+                if (row.size() > 2) frameH = parseDouble(row[2]);
+                if (row.size() > 3) shiftX = parseDouble(row[3]);
+                if (row.size() > 4) shiftY = parseDouble(row[4]);
                 // row[5] is unused/centering
-                if (row.size() > 6) currentPlate.textHeight_mm = std::stod(row[6]);
-                if (row.size() > 7) currentPlate.condensation = std::stod(row[7]) / 100.0;
-                if (row.size() > 8) currentPlate.thickness = std::stod(row[8]);
+                if (row.size() > 6) currentPlate.textHeight_mm = parseDouble(row[6]);
+                if (row.size() > 7) currentPlate.condensation = parseDouble(row[7]) / 100.0;
+                if (row.size() > 8) currentPlate.thickness = parseDouble(row[8]);
 
                 std::string text;
                 if (row.size() > 9) text = row[9];
@@ -138,13 +158,15 @@ Document DocumentParser::parseFile(const std::string& fileName,
 
             case 'w': {
                 // Frame-only element
+                currentPlate = Nameplate();
                 currentPlate.hasFrame = true;
                 currentPlate.frameLeft_mm = xPos;
                 currentPlate.frameBottom_mm = yPos;
                 currentPlate.frameWidth_mm = frameW;
                 currentPlate.frameHeight_mm = frameH;
-                xPos += currentPlate.frameWidth_mm;
-                maxRowHeight = currentPlate.frameHeight_mm;
+                currentRow.addNameplate(currentPlate);
+                xPos += frameW;
+                maxRowHeight = frameH;
                 break;
             }
         }

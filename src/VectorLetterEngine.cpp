@@ -377,9 +377,11 @@ void VectorLetterEngine::generateFullPath() {
         int shift = m_stepover + (m_diameter / 2);
         int passCount = 0;
 
-        while (shift < (m_thickness / 2)) {
-            passCount++;
-            shift += m_stepover;
+        if (m_stepover > 0) {
+            while (shift < (m_thickness / 2)) {
+                passCount++;
+                shift += m_stepover;
+            }
         }
 
         shift = m_stepover;

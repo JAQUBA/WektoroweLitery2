@@ -34,7 +34,6 @@ extern Document*       currentDocument;
 // ============================================================================
 // Application state
 // ============================================================================
-extern std::string     csvDirectory;
 extern std::string     lastInputFile;
 extern std::string     lastOutputFile;
 extern bool            gridVisible;

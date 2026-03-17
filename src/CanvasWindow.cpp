@@ -142,13 +142,16 @@ void CanvasWindow::drawDocument(HDC hdc) {
 void CanvasWindow::drawNameplate(HDC hdc, const Nameplate& plate) {
     // Draw frame
     if (plate.hasFrame) {
-        SelectObject(hdc, m_penFrame);
+        HPEN oldPen = (HPEN)SelectObject(hdc, m_penFrame);
+        HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
         int left   = toScreenX(plate.frameLeft_mm);
         int bottom = toScreenY(plate.frameBottom_mm);
         int right  = toScreenX(plate.frameLeft_mm + plate.frameWidth_mm);
         int top    = toScreenY(plate.frameBottom_mm + plate.frameHeight_mm);
         // Rectangle expects top < bottom in screen coords
         Rectangle(hdc, left, top, right, bottom);
+        SelectObject(hdc, oldBrush);
+        SelectObject(hdc, oldPen);
     }
 
     // Draw letter vectors

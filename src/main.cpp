@@ -11,6 +11,7 @@
 #include "AppUI.h"
 #include "MenuHandler.h"
 #include "CanvasWindow.h"
+#include "theme.h"
 
 #include <UI/LogWindow/LogWindow.h>
 
@@ -28,6 +29,8 @@ void setup() {
     // --- Main window ---
     window = new SimpleWindow(900, 650, "Vector Letters 2", 101);
     window->init();
+    window->setBackgroundColor(CLR_WIN_BG);
+    window->setTextColor(CLR_TEXT);
 
     // --- Menu bar ---
     createAppMenu(window);

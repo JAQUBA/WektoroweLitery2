@@ -4,37 +4,40 @@
 #ifndef THEME_H
 #define THEME_H
 
-#include <UI/Theme/ThemeCatppuccinMocha.h>
+#include <UI/Theme/ThemeTokyoNight.h>
 
 // ============================================================================
-// Application-specific colors
+// Application-specific colors (derived from theme)
 // ============================================================================
 
 /* Window background */
-#define CLR_WIN_BG          RGB(30, 30, 38)
+#define CLR_WIN_BG          CLR_BASE
 
 /* Action buttons (Run, Draw) */
-#define CLR_ACTION_BG       RGB(40, 130, 200)
-#define CLR_ACTION_HOVER    RGB(55, 150, 220)
-#define CLR_ACTION_TEXT     RGB(240, 245, 255)
+#define CLR_ACTION_BG       CLR_ACCENT
+#define CLR_ACTION_HOVER    CLR_ACCENT_H
+#define CLR_ACTION_TEXT     CLR_BG
 
-/* Tool buttons (Add X, Multiply X, etc.) */
-#define CLR_TOOL_BG         RGB(50, 52, 62)
-#define CLR_TOOL_HOVER      RGB(65, 68, 80)
-#define CLR_TOOL_TEXT       RGB(200, 210, 225)
+/* Tool buttons */
+#define CLR_TOOL_BG         CLR_BTN_BG
+#define CLR_TOOL_HOVER      CLR_BTN_HOVER
+#define CLR_TOOL_TEXT       CLR_TEXT
 
 /* Export / Save */
-#define CLR_EXPORT_BG       RGB(45, 90, 90)
-#define CLR_EXPORT_HOVER    RGB(55, 110, 110)
-#define CLR_EXPORT_TEXT     RGB(150, 240, 220)
+#define CLR_EXPORT_BG       CLR_SURFACE3
+#define CLR_EXPORT_HOVER    CLR_TEAL
+#define CLR_EXPORT_TEXT     CLR_GREEN
 
 /* Canvas drawing colors (GDI) */
-#define CLR_CANVAS_BG       RGB(22, 22, 28)
-#define CLR_GRID_LINE       RGB(50, 50, 60)
-#define CLR_VECTOR_LINE     RGB(0, 200, 80)
-#define CLR_FRAME_LINE      RGB(200, 50, 50)
+#define CLR_CANVAS_BG       CLR_BG
+#define CLR_GRID_LINE       CLR_SURFACE2
+#define CLR_VECTOR_LINE     CLR_GREEN
+#define CLR_FRAME_LINE      CLR_RED
 
 /* Status / info */
-#define CLR_INFO_TEXT       RGB(180, 190, 200)
+#define CLR_INFO_TEXT       CLR_SUBTEXT
+
+/* Label text */
+#define CLR_LABEL_TEXT      CLR_TEXT
 
 #endif /* THEME_H */

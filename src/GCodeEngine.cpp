@@ -4,6 +4,21 @@
 #include "GCodeEngine.h"
 #include <fstream>
 #include <cstdio>
+#include <string>
+
+static std::string fmtF2(double val) {
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%.2f", val);
+    for (char* p = buf; *p; p++) if (*p == '.') *p = ',';
+    return buf;
+}
+
+static std::string fmtF3(double val) {
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%.3f", val);
+    for (char* p = buf; *p; p++) if (*p == '.') *p = ',';
+    return buf;
+}
 
 GCodeEngine::GCodeEngine() {
     init();
@@ -43,12 +58,12 @@ void GCodeEngine::prolog() {
 
     if (!m_laserMode) {
         m_lineCounter += m_lineJump;
-        std::snprintf(buf, sizeof(buf), "N%04d G00 Z0.20", m_lineCounter);
+        std::snprintf(buf, sizeof(buf), "N%04d G00 Z0,20", m_lineCounter);
         appendLine(buf);
     }
 
     m_lineCounter += m_lineJump;
-    std::snprintf(buf, sizeof(buf), "N%04d G00 X0.000 Y0.000", m_lineCounter);
+    std::snprintf(buf, sizeof(buf), "N%04d G00 X0,000 Y0,000", m_lineCounter);
     appendLine(buf);
 }
 
@@ -57,7 +72,7 @@ void GCodeEngine::epilog() {
 
     if (!m_laserMode) {
         m_lineCounter += m_lineJump;
-        std::snprintf(buf, sizeof(buf), "N%04d G00 Z0.20", m_lineCounter);
+        std::snprintf(buf, sizeof(buf), "N%04d G00 Z0,20", m_lineCounter);
         appendLine(buf);
     } else {
         std::snprintf(buf, sizeof(buf), "N%04d M05", m_lineCounter);
@@ -65,12 +80,12 @@ void GCodeEngine::epilog() {
     }
 
     m_lineCounter += m_lineJump;
-    std::snprintf(buf, sizeof(buf), "N%04d G00 X0.000 Y0.000", m_lineCounter);
+    std::snprintf(buf, sizeof(buf), "N%04d G00 X0,000 Y0,000", m_lineCounter);
     appendLine(buf);
 
     if (!m_laserMode) {
         m_lineCounter += m_lineJump;
-        std::snprintf(buf, sizeof(buf), "N%04d G00 Z0.20", m_lineCounter);
+        std::snprintf(buf, sizeof(buf), "N%04d G00 Z0,20", m_lineCounter);
         appendLine(buf);
 
         m_lineCounter += m_lineJump;
@@ -87,7 +102,7 @@ void GCodeEngine::workingZ(double z) {
     char buf[64];
     m_lineCounter += m_lineJump;
     if (!m_laserMode) {
-        std::snprintf(buf, sizeof(buf), "N%04d G01 Z%.2f", m_lineCounter, z);
+        std::snprintf(buf, sizeof(buf), "N%04d G01 Z%s", m_lineCounter, fmtF2(z).c_str());
     } else {
         std::snprintf(buf, sizeof(buf), "N%04d M03", m_lineCounter);
     }
@@ -97,7 +112,7 @@ void GCodeEngine::workingZ(double z) {
 void GCodeEngine::workingXY(double x, double y) {
     char buf[64];
     m_lineCounter += m_lineJump;
-    std::snprintf(buf, sizeof(buf), "N%04d G01 X%.3f Y%.3f", m_lineCounter, x, y);
+    std::snprintf(buf, sizeof(buf), "N%04d G01 X%s Y%s", m_lineCounter, fmtF3(x).c_str(), fmtF3(y).c_str());
     appendLine(buf);
 }
 
@@ -105,7 +120,7 @@ void GCodeEngine::idleZ(double z) {
     char buf[64];
     m_lineCounter += m_lineJump;
     if (!m_laserMode) {
-        std::snprintf(buf, sizeof(buf), "N%04d G00 Z%.2f", m_lineCounter, z);
+        std::snprintf(buf, sizeof(buf), "N%04d G00 Z%s", m_lineCounter, fmtF2(z).c_str());
     } else {
         std::snprintf(buf, sizeof(buf), "N%04d M05", m_lineCounter);
     }
@@ -115,7 +130,7 @@ void GCodeEngine::idleZ(double z) {
 void GCodeEngine::idleXY(double x, double y) {
     char buf[64];
     m_lineCounter += m_lineJump;
-    std::snprintf(buf, sizeof(buf), "N%04d G00 X%.3f Y%.3f", m_lineCounter, x, y);
+    std::snprintf(buf, sizeof(buf), "N%04d G00 X%s Y%s", m_lineCounter, fmtF3(x).c_str(), fmtF3(y).c_str());
     appendLine(buf);
 }
 

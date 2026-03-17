@@ -12,6 +12,8 @@
 #include <UI/Label/Label.h>
 #include <UI/LogWindow/LogWindow.h>
 #include <Util/ConfigManager.h>
+#include <Util/StringUtils.h>
+#include <vector>
 
 // ============================================================================
 // Global variable definitions
@@ -28,6 +30,39 @@ std::string    csvDirectory  = "";
 std::string    lastInputFile = "";
 std::string    lastOutputFile = "";
 bool           gridVisible   = true;
+
+static bool fileExists(const std::string& path) {
+    DWORD attrs = GetFileAttributesA(path.c_str());
+    return attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+static std::string getFontsDirectory() {
+    wchar_t exePath[MAX_PATH] = {};
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+
+    std::wstring dir(exePath);
+    size_t pos = dir.find_last_of(L"\\/");
+    if (pos != std::wstring::npos)
+        dir = dir.substr(0, pos);
+
+    std::string exeDir = StringUtils::wideToUtf8(dir);
+    std::vector<std::string> candidates = {
+        exeDir + "\\resources\\fonts\\",
+        exeDir + "\\..\\resources\\fonts\\",
+        exeDir + "\\..\\..\\resources\\fonts\\",
+        exeDir + "\\..\\..\\..\\resources\\fonts\\",
+        "resources\\fonts\\"
+    };
+
+    for (const auto& candidate : candidates) {
+        if (fileExists(candidate + "65.csv")) {
+            return candidate;
+        }
+    }
+
+    // Keep deterministic fallback even when files are missing.
+    return exeDir + "\\resources\\fonts\\";
+}
 
 // External canvas (defined in main.cpp)
 extern CanvasWindow* canvas;
@@ -48,14 +83,13 @@ void logMsg(const std::wstring& msg) {
 // Settings load/save
 // ============================================================================
 void loadSettings() {
-    csvDirectory  = config.getValue("csv_directory", "");
+    csvDirectory  = getFontsDirectory();
     lastInputFile = config.getValue("last_input_file", "");
     lastOutputFile = config.getValue("last_output_file", "");
     gridVisible   = config.getValue("grid_visible", "1") == "1";
 }
 
 void saveSettings() {
-    config.setValue("csv_directory", csvDirectory);
     config.setValue("last_input_file", lastInputFile);
     config.setValue("last_output_file", lastOutputFile);
     config.setValue("grid_visible", gridVisible ? "1" : "0");
@@ -70,7 +104,13 @@ void doRunDocument() {
         return;
     }
     if (csvDirectory.empty()) {
-        logMsg(L"CSV directory not set");
+        logMsg(L"Fonts directory not set");
+        return;
+    }
+
+    if (!fileExists(csvDirectory + "65.csv")) {
+        std::wstring msg = L"Font CSV files not found in: " + std::wstring(csvDirectory.begin(), csvDirectory.end());
+        logMsg(msg);
         return;
     }
 
