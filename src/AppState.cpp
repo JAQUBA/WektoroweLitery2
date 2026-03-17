@@ -30,9 +30,11 @@ Document*      currentDocument = nullptr;
 std::string    csvDirectory  = "";
 std::string    lastInputFile = "";
 std::string    lastOutputFile = "";
-std::string    exportIdleDepth = "0,10";
-std::string    exportWorkDepth = "-0,10";
-std::string    exportCutDepth = "-1,45";
+std::string    exportDiameter = "0,30";
+std::string    exportStepover = "0,15";
+std::string    exportMaterialThickness = "1,50";
+std::string    exportTextDepth = "0,20";
+std::string    exportSafeHeight = "5,00";
 bool           gridVisible   = true;
 
 static bool fileExists(const std::string& path) {
@@ -105,18 +107,22 @@ void loadSettings() {
     csvDirectory  = getFontsDirectory();
     lastInputFile = config.getValue("last_input_file", "");
     lastOutputFile = config.getValue("last_output_file", "");
-    exportIdleDepth = config.getValue("export_idle_depth", "0,10");
-    exportWorkDepth = config.getValue("export_work_depth", "-0,10");
-    exportCutDepth = config.getValue("export_cut_depth", "-1,45");
+    exportDiameter = config.getValue("export_diameter", "0,30");
+    exportStepover = config.getValue("export_stepover", "0,15");
+    exportMaterialThickness = config.getValue("export_material_thickness", "1,50");
+    exportTextDepth = config.getValue("export_text_depth", "0,20");
+    exportSafeHeight = config.getValue("export_safe_height", "5,00");
     gridVisible   = config.getValue("grid_visible", "1") == "1";
 }
 
 void saveSettings() {
     config.setValue("last_input_file", lastInputFile);
     config.setValue("last_output_file", lastOutputFile);
-    config.setValue("export_idle_depth", exportIdleDepth);
-    config.setValue("export_work_depth", exportWorkDepth);
-    config.setValue("export_cut_depth", exportCutDepth);
+    config.setValue("export_diameter", exportDiameter);
+    config.setValue("export_stepover", exportStepover);
+    config.setValue("export_material_thickness", exportMaterialThickness);
+    config.setValue("export_text_depth", exportTextDepth);
+    config.setValue("export_safe_height", exportSafeHeight);
     config.setValue("grid_visible", gridVisible ? "1" : "0");
 }
 
@@ -141,12 +147,21 @@ void doRunDocument() {
 
     logMsg(L"Parsing document...");
 
+    // Parse UI tool parameters
+    double diam = 0.0, step = 0.0;
+    if (!tryParseDouble(exportDiameter, diam) ||
+        !tryParseDouble(exportStepover, step) ||
+        diam <= 0 || step <= 0) {
+        logMsg(L"Invalid tool parameters. Use positive values (e.g. 0,30 / 0,15)");
+        return;
+    }
+
     if (currentDocument) {
         delete currentDocument;
         currentDocument = nullptr;
     }
 
-    Document doc = DocumentParser::parseFile(lastInputFile, csvDirectory);
+    Document doc = DocumentParser::parseFile(lastInputFile, csvDirectory, diam, step);
     currentDocument = new Document(doc);
 
     if (canvas) {
@@ -163,27 +178,70 @@ void doRunDocument() {
 }
 
 void doExportGCode() {
-    if (!currentDocument) {
-        logMsg(L"No document to export");
+    if (lastInputFile.empty()) {
+        logMsg(L"No input file selected");
         return;
     }
     if (lastOutputFile.empty()) {
         logMsg(L"No output file specified");
         return;
     }
-
-    double idleDepth = 0.0, workDepth = 0.0, cutDepth = 0.0;
-    if (!tryParseDouble(exportIdleDepth, idleDepth) ||
-        !tryParseDouble(exportWorkDepth, workDepth) ||
-        !tryParseDouble(exportCutDepth, cutDepth)) {
-        logMsg(L"Invalid depth values. Use numeric values (e.g. 0,10 / -0,10 / -1,45)");
+    if (csvDirectory.empty()) {
+        logMsg(L"Fonts directory not set");
         return;
     }
 
-    Document exportDoc = *currentDocument;
-    exportDoc.idleDepth_mm = idleDepth;
-    exportDoc.workingDepth_mm = workDepth;
-    exportDoc.cuttingDepth_mm = cutDepth;
+    if (!fileExists(csvDirectory + "65.csv")) {
+        std::wstring msg = L"Font CSV files not found in: " + std::wstring(csvDirectory.begin(), csvDirectory.end());
+        logMsg(msg);
+        return;
+    }
+
+    double diam = 0.0, step = 0.0, matThick = 0.0, textDep = 0.0, safeH = 0.0;
+
+    // Log raw UI parameter strings for debugging
+    {
+        wchar_t dbg[512];
+        std::wstring wMat(exportMaterialThickness.begin(), exportMaterialThickness.end());
+        std::wstring wDep(exportTextDepth.begin(), exportTextDepth.end());
+        std::wstring wSafe(exportSafeHeight.begin(), exportSafeHeight.end());
+        _snwprintf(dbg, 512, L"Export params: material='%s'  depth='%s'  safe='%s'",
+                   wMat.c_str(), wDep.c_str(), wSafe.c_str());
+        logMsg(dbg);
+    }
+    if (!tryParseDouble(exportDiameter, diam) ||
+        !tryParseDouble(exportStepover, step) ||
+        !tryParseDouble(exportMaterialThickness, matThick) ||
+        !tryParseDouble(exportTextDepth, textDep) ||
+        !tryParseDouble(exportSafeHeight, safeH)) {
+        logMsg(L"Invalid parameter values. Use positive numbers (e.g. 0,30 / 0,15 / 1,50 / 0,20 / 5,00)");
+        return;
+    }
+    if (diam <= 0 || step <= 0 || matThick <= 0 || textDep <= 0 || safeH <= 0) {
+        logMsg(L"All parameters must be positive values");
+        return;
+    }
+
+    // Reparse with current UI parameters so export always uses program config.
+    Document exportDoc = DocumentParser::parseFile(lastInputFile, csvDirectory, diam, step);
+    if (exportDoc.getRows().empty()) {
+        logMsg(L"Document parsing failed or returned no rows");
+        return;
+    }
+
+    exportDoc.materialThickness_mm = matThick;
+    exportDoc.textDepth_mm = textDep;
+    exportDoc.safeHeight_mm = safeH;
+
+    // Log computed Z levels for verification
+    {
+        double zText = matThick - textDep;
+        double zSafe = matThick + safeH;
+        wchar_t zBuf[256];
+        _snwprintf(zBuf, 256, L"Z levels: text=%.2f  cut=0.00  safe=%.2f  (material=%.2f  depth=%.2f)",
+                   zText, zSafe, matThick, textDep);
+        logMsg(zBuf);
+    }
 
     GCodeEngine gce;
     gce.exportDocument(lastOutputFile, exportDoc);

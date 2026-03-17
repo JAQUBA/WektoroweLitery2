@@ -29,8 +29,8 @@ private:
     void init();
     void dumpToFile(const std::string& fileName);
 
-    void prolog();
-    void epilog();
+    void prolog(double safeHeight);
+    void epilog(double safeHeight);
 
     void idleZ(double z);
     void idleXY(double x, double y);

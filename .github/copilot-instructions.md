@@ -41,7 +41,7 @@ WektoroweLitery2/
 | **CanvasWindow** | Custom WinAPI child window with double-buffered GDI rendering, mouse zoom/pan, grid overlay, document vector rendering |
 | **VectorPoint** (VectorPoint.h) | Point struct with coordinates, angles (alphaPrimary, alphaMean), serif flag, terminator flag |
 | **VectorLetterEngine** (VectorLetterEngine.h/.cpp) | Core vector engine: CSV import, angle computation, envelope generation, toolpath calculation |
-| **Document** | Document-level parameters (depths, diameters, laser mode) + collection of TableRows |
+| **Document** | Document-level parameters (materialThickness, textDepth, safeHeight, diameter, laser mode) + collection of TableRows |
 | **TableRow** | Row of Nameplates |
 | **Nameplate** | Text layout engine: loads letter CSVs, positions, centers within frame, generates toolpaths |
 | **DocumentParser** | Parses semicolon-separated layout files into Document model |
@@ -91,11 +91,13 @@ Help → About...
 
 Semicolon-separated commands:
 - `p;diameter;stepover` — laser mode parameters
-- `f;diameter;stepover;idleZ;workZ;cutZ` — milling mode parameters
+- `f;diameter;stepover;materialThickness;textDepth;safeHeight` — milling mode parameters (all positive values in mm)
 - `l` — new row (line break)
 - `t;width;height;dx;dy;?;textH;condensation;thickness;text` — text-only nameplate
 - `tw;width;height;dx;dy;?;textH;condensation;thickness;text` — nameplate with frame
 - `w;width;height` — frame-only element
+
+**Z coordinate convention:** Bottom of material = Z0.0 (lowest point). Surface = Z(materialThickness). Text engraving → Z = materialThickness − textDepth. Frame cutting → Z = 0.0. Rapid travel → Z = materialThickness + safeHeight.
 
 ### CSV Letter Format
 
@@ -131,9 +133,9 @@ Plain lines (no `Nxxxx` numbering) with:
 |-----|-------------|---------|
 | `last_input_file` | Last opened layout file | (empty) |
 | `last_output_file` | Last G-Code output path | (empty) |
-| `export_idle_depth` | Export rapid travel depth (Idle Z) | `0,10` |
-| `export_work_depth` | Export text engraving depth (Work Z) | `-0,10` |
-| `export_cut_depth` | Export frame cutting depth (Cut Z) | `-1,45` |
+| `export_material_thickness` | Material thickness [mm] | `1,50` |
+| `export_text_depth` | Text engraving depth [mm] | `0,20` |
+| `export_safe_height` | Safe travel height [mm] | `5,00` |
 | `grid_visible` | Show grid in canvas | `1` |
 | `logwin_x/y/w/h` | Log window position/size | (auto) |
 

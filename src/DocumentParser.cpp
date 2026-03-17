@@ -2,12 +2,12 @@
 // DocumentParser.cpp — Layout file parser implementation
 //
 // File format (semicolon-separated lines):
-//   p;diameter;stepover                     — laser mode params
-//   f;diameter;stepover;idleZ;workZ;cutZ    — milling mode params
-//   l                                       — new row (line break)
-//   t;width;height;dx;dy;?;textH;cond;thick;text  — text-only plate
-//   tw;width;height;dx;dy;?;textH;cond;thick;text — plate with frame
-//   w;width;height                          — frame-only element
+//   p;diameter;stepover                                   — laser mode params
+//   f;diameter;stepover;materialThickness;textDepth;safeHeight — milling mode params (all positive)
+//   l                                                     — new row (line break)
+//   t;width;height;dx;dy;?;textH;cond;thick;text          — text-only plate
+//   tw;width;height;dx;dy;?;textH;cond;thick;text         — plate with frame
+//   w;width;height                                        — frame-only element
 // ============================================================================
 #include "DocumentParser.h"
 #include "Nameplate.h"
@@ -56,8 +56,12 @@ static void stripUtf8BOM(std::string& s) {
 }
 
 Document DocumentParser::parseFile(const std::string& fileName,
-                                    const std::string& csvDir) {
+                                    const std::string& csvDir,
+                                    double diameter,
+                                    double stepover) {
     Document doc;
+    doc.millingDiameter_mm = diameter;
+    doc.stepover_mm = stepover;
     TableRow currentRow;
     Nameplate currentPlate;
 
@@ -91,18 +95,15 @@ Document DocumentParser::parseFile(const std::string& fileName,
             case 'p': {
                 // Laser mode parameters
                 doc.laserMode = true;
-                if (row.size() > 1) doc.millingDiameter_mm = parseDouble(row[1]);
-                if (row.size() > 2) doc.stepover_mm = parseDouble(row[2]);
+                // diameter and stepover come from UI — ignore file values
                 break;
             }
 
             case 'f': {
-                // Milling mode parameters
-                if (row.size() > 1) doc.millingDiameter_mm = parseDouble(row[1]);
-                if (row.size() > 2) doc.stepover_mm = parseDouble(row[2]);
-                if (row.size() > 3) doc.idleDepth_mm = parseDouble(row[3]);
-                if (row.size() > 4) doc.workingDepth_mm = parseDouble(row[4]);
-                if (row.size() > 5) doc.cuttingDepth_mm = parseDouble(row[5]);
+                // Milling mode parameters — diameter and stepover come from UI
+                if (row.size() > 3) doc.materialThickness_mm = parseDouble(row[3]);
+                if (row.size() > 4) doc.textDepth_mm = parseDouble(row[4]);
+                if (row.size() > 5) doc.safeHeight_mm = parseDouble(row[5]);
                 break;
             }
 

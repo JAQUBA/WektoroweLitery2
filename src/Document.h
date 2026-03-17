@@ -11,9 +11,9 @@ class Document {
 public:
     double millingDiameter_mm = 0.0;
     double stepover_mm = 0.0;
-    double workingDepth_mm = 0.0;
-    double idleDepth_mm = 0.0;
-    double cuttingDepth_mm = 0.0;
+    double materialThickness_mm = 0.0;
+    double textDepth_mm = 0.0;
+    double safeHeight_mm = 5.0;
     bool laserMode = false;
 
     Document() = default;

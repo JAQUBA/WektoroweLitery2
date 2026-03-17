@@ -139,47 +139,83 @@ void createUI(SimpleWindow* win) {
 
     y += 30;
 
-    // --- Export depth parameters ---
-    auto* lblIdle = new Label(m, y + 3, 65, 20, L"Idle Z:");
-    win->add(lblIdle);
-    lblIdle->setFont(L"Segoe UI", 10, false);
-    lblIdle->setTextColor(CLR_LABEL_TEXT);
-    lblIdle->setBackColor(CLR_WIN_BG);
+    // --- Tool parameters ---
+    auto* lblDia = new Label(m, y + 3, 65, 20, L"Dia:");
+    win->add(lblDia);
+    lblDia->setFont(L"Segoe UI", 10, false);
+    lblDia->setTextColor(CLR_LABEL_TEXT);
+    lblDia->setBackColor(CLR_WIN_BG);
 
-    auto* idleField = new InputField(m + 65, y, 80, 24, exportIdleDepth.c_str(),
+    auto* diaField = new InputField(m + 45, y, 80, 24, exportDiameter.c_str(),
         [](InputField*, const char* text) {
-            exportIdleDepth = text;
+            exportDiameter = text;
         });
-    idleField->setMaxLength(32);
-    win->add(idleField);
+    diaField->setMaxLength(32);
+    win->add(diaField);
 
-    auto* lblWork = new Label(m + 170, y + 3, 65, 20, L"Work Z:");
-    win->add(lblWork);
-    lblWork->setFont(L"Segoe UI", 10, false);
-    lblWork->setTextColor(CLR_LABEL_TEXT);
-    lblWork->setBackColor(CLR_WIN_BG);
+    auto* lblStep = new Label(m + 145, y + 3, 70, 20, L"Stepover:");
+    win->add(lblStep);
+    lblStep->setFont(L"Segoe UI", 10, false);
+    lblStep->setTextColor(CLR_LABEL_TEXT);
+    lblStep->setBackColor(CLR_WIN_BG);
 
-    auto* workField = new InputField(m + 235, y, 80, 24, exportWorkDepth.c_str(),
+    auto* stepField = new InputField(m + 215, y, 80, 24, exportStepover.c_str(),
         [](InputField*, const char* text) {
-            exportWorkDepth = text;
+            exportStepover = text;
         });
-    workField->setMaxLength(32);
-    win->add(workField);
+    stepField->setMaxLength(32);
+    win->add(stepField);
 
-    auto* lblCut = new Label(m + 340, y + 3, 65, 20, L"Cut Z:");
-    win->add(lblCut);
-    lblCut->setFont(L"Segoe UI", 10, false);
-    lblCut->setTextColor(CLR_LABEL_TEXT);
-    lblCut->setBackColor(CLR_WIN_BG);
+    auto* lblMat = new Label(m + 315, y + 3, 75, 20, L"Material:");
+    win->add(lblMat);
+    lblMat->setFont(L"Segoe UI", 10, false);
+    lblMat->setTextColor(CLR_LABEL_TEXT);
+    lblMat->setBackColor(CLR_WIN_BG);
 
-    auto* cutField = new InputField(m + 405, y, 80, 24, exportCutDepth.c_str(),
+    auto* matField = new InputField(m + 390, y, 80, 24, exportMaterialThickness.c_str(),
         [](InputField*, const char* text) {
-            exportCutDepth = text;
+            exportMaterialThickness = text;
         });
-    cutField->setMaxLength(32);
-    win->add(cutField);
+    matField->setMaxLength(32);
+    win->add(matField);
 
-    auto* lblDepthHint = new Label(m + 510, y + 3, 330, 20, L"Used only for G-Code export");
+    auto* lblTopHint = new Label(m + 490, y + 3, 320, 20, L"Dia/step/material [mm]");
+    win->add(lblTopHint);
+    lblTopHint->setFont(L"Segoe UI", 10, false);
+    lblTopHint->setTextColor(CLR_INFO_TEXT);
+    lblTopHint->setBackColor(CLR_WIN_BG);
+
+    y += 30;
+
+    // --- Z parameters ---
+    auto* lblTextD = new Label(m, y + 3, 80, 20, L"Text depth:");
+    win->add(lblTextD);
+    lblTextD->setFont(L"Segoe UI", 10, false);
+    lblTextD->setTextColor(CLR_LABEL_TEXT);
+    lblTextD->setBackColor(CLR_WIN_BG);
+
+    auto* textDField = new InputField(m + 80, y, 80, 24, exportTextDepth.c_str(),
+        [](InputField*, const char* text) {
+            exportTextDepth = text;
+        });
+    textDField->setMaxLength(32);
+    win->add(textDField);
+
+    auto* lblSafe = new Label(m + 180, y + 3, 60, 20, L"Safe Z:");
+    win->add(lblSafe);
+    lblSafe->setFont(L"Segoe UI", 10, false);
+    lblSafe->setTextColor(CLR_LABEL_TEXT);
+    lblSafe->setBackColor(CLR_WIN_BG);
+
+    auto* safeField = new InputField(m + 240, y, 80, 24, exportSafeHeight.c_str(),
+        [](InputField*, const char* text) {
+            exportSafeHeight = text;
+        });
+    safeField->setMaxLength(32);
+    win->add(safeField);
+
+    auto* lblDepthHint = new Label(m + 340, y + 3, 500, 20,
+        L"All values positive [mm] | Z0.0 = bottom of material");
     win->add(lblDepthHint);
     lblDepthHint->setFont(L"Segoe UI", 10, false);
     lblDepthHint->setTextColor(CLR_INFO_TEXT);

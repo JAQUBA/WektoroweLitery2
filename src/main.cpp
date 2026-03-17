@@ -40,7 +40,7 @@ void setup() {
 
     // --- Canvas (custom GDI child window) ---
     canvas = new CanvasWindow();
-    canvas->create(window->getHandle(), 10, 140, 880, 470);
+    canvas->create(window->getHandle(), 10, 170, 880, 440);
     canvas->setGridVisible(gridVisible);
 
     // --- Save settings on close ---

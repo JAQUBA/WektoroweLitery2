@@ -36,9 +36,11 @@ extern Document*       currentDocument;
 // ============================================================================
 extern std::string     lastInputFile;
 extern std::string     lastOutputFile;
-extern std::string     exportIdleDepth;
-extern std::string     exportWorkDepth;
-extern std::string     exportCutDepth;
+extern std::string     exportDiameter;
+extern std::string     exportStepover;
+extern std::string     exportMaterialThickness;
+extern std::string     exportTextDepth;
+extern std::string     exportSafeHeight;
 extern bool            gridVisible;
 
 // ============================================================================

@@ -41,32 +41,26 @@ void GCodeEngine::appendLine(const std::string& content) {
     m_buffer << content << "\n";
 }
 
-void GCodeEngine::prolog() {
+void GCodeEngine::prolog(double safeHeight) {
     appendLine("G90");
     appendLine("F1000");
     appendLine("G21");
 
     if (!m_laserMode) {
-        appendLine("G00 Z0,20");
+        appendLine("G00 Z" + fmtF2(safeHeight));
     }
 
-    appendLine("G00 X0,000 Y0,000");
+    appendLine("G00 X0.000 Y0.000");
 }
 
-void GCodeEngine::epilog() {
+void GCodeEngine::epilog(double safeHeight) {
     if (!m_laserMode) {
-        appendLine("G00 Z0,20");
+        appendLine("G00 Z" + fmtF2(safeHeight));
     } else {
         appendLine("M05");
     }
 
-    appendLine("G00 X0,000 Y0,000");
-
-    if (!m_laserMode) {
-        appendLine("G00 Z0,20");
-        appendLine("G00 X0 Y0");
-    }
-
+    appendLine("G00 X0.000 Y0.000");
     appendLine("M30");
 }
 
@@ -109,10 +103,10 @@ void GCodeEngine::exportSingleFrame(const std::string& fileName, const Document&
                                      double left, double bottom,
                                      double width, double height) {
     init();
-    idleZ(doc.idleDepth_mm);
+    idleZ(doc.materialThickness_mm + doc.safeHeight_mm);
     idleXY(left, bottom);
 
-    workingZ(doc.cuttingDepth_mm);
+    workingZ(0.0);
 
     workingXY(left, bottom + height);
     workingXY(left + width, bottom + height);
@@ -129,7 +123,11 @@ void GCodeEngine::exportDocument(const std::string& fileName, const Document& do
     init();
     m_laserMode = doc.laserMode;
 
-    prolog();
+    double safeZ = doc.materialThickness_mm + doc.safeHeight_mm;
+    double textZ = doc.materialThickness_mm - doc.textDepth_mm;
+    double cutZ  = 0.0;
+
+    prolog(safeZ);
 
     for (const auto& row : doc.getRows()) {
         for (const auto& plate : row.getNameplates()) {
@@ -137,10 +135,10 @@ void GCodeEngine::exportDocument(const std::string& fileName, const Document& do
 
             // Draw frame if present
             if (plate.hasFrame) {
-                idleZ(doc.idleDepth_mm);
+                idleZ(safeZ);
                 idleXY(plate.frameLeft_mm, plate.frameBottom_mm);
 
-                workingZ(doc.cuttingDepth_mm);
+                workingZ(cutZ);
 
                 workingXY(plate.frameLeft_mm, plate.frameBottom_mm + plate.frameHeight_mm);
                 workingXY(plate.frameLeft_mm + plate.frameWidth_mm,
@@ -155,11 +153,11 @@ void GCodeEngine::exportDocument(const std::string& fileName, const Document& do
                     if (segment.empty()) continue;
 
                     Point2D pt = segment[0];
-                    idleZ(doc.idleDepth_mm);
+                    idleZ(safeZ);
                     idleXY(pt.X / scale, pt.Y / scale);
 
                     if (segment.size() > 1) {
-                        workingZ(doc.workingDepth_mm);
+                        workingZ(textZ);
 
                         for (size_t i = 1; i < segment.size(); i++) {
                             pt = segment[i];
@@ -171,6 +169,6 @@ void GCodeEngine::exportDocument(const std::string& fileName, const Document& do
         }
     }
 
-    epilog();
+    epilog(safeZ);
     dumpToFile(fileName);
 }

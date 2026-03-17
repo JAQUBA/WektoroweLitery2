@@ -35,17 +35,19 @@ Dependencies are fetched automatically:
 1. Place glyph CSV files in `resources/fonts/` (already included in this repository).
 2. Open a layout file (`.TXT`) with the Input file picker.
 3. Click `Run` to parse and preview the layout (scroll to zoom, drag to pan, double-click to reset view).
-4. Set export depth parameters in UI:
-	- `Idle Z` (rapid travel height)
-	- `Work Z` (text engraving depth)
-	- `Cut Z` (frame cutting depth)
+4. Set export parameters in UI (all positive values in mm):
+	- `Material` — material thickness (cutting depth = full thickness)
+	- `Text depth` — engraving depth below surface
+	- `Safe Z` — safe travel height above material
 5. Choose output `.gcode` file and click `Export GCode`.
+
+**Z coordinate convention:** Surface of material = Z0.0. Text engraving goes to Z = -(text depth). Frame cutting goes to Z = -(material thickness). Rapid travel at Z = +(safe height).
 
 ## Layout File Format
 
 Semicolon-separated commands:
 - `p;diameter;stepover` — laser mode
-- `f;diameter;stepover;idleZ;workZ;cutZ` — milling mode
+- `f;diameter;stepover;materialThickness;textDepth;safeHeight` — milling mode (all positive values in mm)
 - `l` — new row
 - `t;W;H;dx;dy;?;textH;condensation;thickness;text` — text nameplate
 - `tw;W;H;dx;dy;?;textH;condensation;thickness;text` — nameplate with frame
@@ -75,9 +77,15 @@ Example:
 G90
 F1000
 G21
-G00 Z0.20
+G00 Z5.00
 G00 X0.000 Y0.000
+G00 Z5.00
+G00 X0.000 Y0.000
+G01 Z-1.50
+G01 X0.000 Y30.000
 ...
+G00 Z5.00
+G00 X0.000 Y0.000
 M30
 ```
 
@@ -85,7 +93,8 @@ M30
 
 - The application expects glyph CSV files to be available in `resources/fonts/`.
 - If glyph files are missing, preview/export for those characters can be incomplete.
-- Export depth values entered in UI are used at export time (they can override values from input TXT).
+- Export parameters entered in UI are used at export time — they override values from input TXT file.
+- All depth/height values are positive numbers. The engine computes correct Z signs automatically.
 
 ## License
 
