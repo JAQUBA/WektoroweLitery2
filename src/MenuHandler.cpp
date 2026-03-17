@@ -41,6 +41,7 @@ void createAppMenu(SimpleWindow* win) {
 
     // --- Settings ---
     menuBar->addMenu(L"Settings", [](PopupMenu& m) {
+        m.addItem(L"Tool presets...", []() { doShowToolPresets(); });
         m.addItem(L"Machine workspace size...", []() { doShowWorkspaceSettings(); });
     });
 

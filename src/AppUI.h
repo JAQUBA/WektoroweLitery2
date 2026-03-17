@@ -18,6 +18,10 @@ void setEditorTextUI(const std::string& text);
 // Highlight lines with parse errors (red underline) in the editor.
 void highlightEditorErrors(const std::vector<int>& errorLines);
 
+// Tool preset selector
+void updateToolButtonText();
+void showToolPopup();
+
 // Splitter handle (managed by AppUI, repositioned by doRelayout)
 extern HWND hSplitter;
 

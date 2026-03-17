@@ -25,6 +25,8 @@ static void styleBtn(SimpleWindow* win, Button* btn,
 
 // --- Dark theme for editor — no longer needed (RichEdit uses EM_SETBKGNDCOLOR) ---
 
+static HWND hToolButton = nullptr;
+
 // --- Splitter drag state ---
 HWND hSplitter = nullptr;
 static bool splitterDragging = false;
@@ -134,31 +136,12 @@ void createUI(SimpleWindow* win) {
         }),
         CLR_TOOL_BG, CLR_TOOL_TEXT, CLR_TOOL_HOVER);
 
-    // Tool parameters (compact, same row)
-    int px = m + 225;
-    auto addParam = [&](const wchar_t* label, int lw, int fw, std::string* varPtr) {
-        auto* lbl = new Label(px, y + 3, lw, 20, label);
-        win->add(lbl);
-        lbl->setFont(L"Segoe UI", 10, false);
-        lbl->setTextColor(CLR_LABEL_TEXT);
-        lbl->setBackColor(CLR_WIN_BG);
-        px += lw;
-
-        auto* field = new InputField(px, y, fw, 24, varPtr->c_str(),
-            [varPtr](InputField*, const char* text) {
-                *varPtr = text;
-                doRenderPreview();
-            });
-        field->setMaxLength(32);
-        win->add(field);
-        px += fw + 5;
-    };
-
-    addParam(L"Dia:", 28, 52, &exportDiameter);
-    addParam(L"Step:", 32, 52, &exportStepover);
-    addParam(L"Mat:", 28, 52, &exportMaterialThickness);
-    addParam(L"Dep:", 28, 52, &exportTextDepth);
-    addParam(L"Safe:", 32, 52, &exportSafeHeight);
+    // Tool preset selector button
+    auto* toolBtn = new Button(m + 225, y, 200, 26, "Tool",
+        [](Button*) { showToolPopup(); });
+    styleBtn(win, toolBtn, CLR_TOOL_BG, CLR_TOOL_TEXT, CLR_TOOL_HOVER);
+    hToolButton = toolBtn->getHandle();
+    updateToolButtonText();
 
     y += 30;
 
@@ -257,6 +240,44 @@ void setEditorTextUI(const std::string& text) {
     editorChangeIgnore = true;
     setEditorText(text);
     editorChangeIgnore = false;
+}
+
+// ============================================================================
+// Tool preset selector popup and button text
+// ============================================================================
+void showToolPopup() {
+    if (!hToolButton || !window) return;
+    RECT rc;
+    GetWindowRect(hToolButton, &rc);
+
+    HMENU hMenu = CreatePopupMenu();
+    for (int i = 0; i < (int)toolPresets.size(); i++) {
+        std::wstring name = StringUtils::utf8ToWide(toolPresets[i].name);
+        UINT flags = MF_STRING;
+        if (i == activeToolIndex) flags |= MF_CHECKED;
+        AppendMenuW(hMenu, flags, 10000 + i, name.c_str());
+    }
+    AppendMenuW(hMenu, MF_SEPARATOR, 0, NULL);
+    AppendMenuW(hMenu, MF_STRING, 10999, L"Manage tools...");
+
+    int cmd = TrackPopupMenu(hMenu, TPM_RETURNCMD | TPM_NONOTIFY,
+                             rc.left, rc.bottom, 0, window->getHandle(), NULL);
+    DestroyMenu(hMenu);
+
+    if (cmd >= 10000 && cmd < 10999) {
+        doSelectTool(cmd - 10000);
+    } else if (cmd == 10999) {
+        doShowToolPresets();
+    }
+}
+
+void updateToolButtonText() {
+    if (!hToolButton) return;
+    std::wstring text = L"\u25BC ";
+    if (activeToolIndex >= 0 && activeToolIndex < (int)toolPresets.size()) {
+        text += StringUtils::utf8ToWide(toolPresets[activeToolIndex].name);
+    }
+    SetWindowTextW(hToolButton, text.c_str());
 }
 
 // ============================================================================

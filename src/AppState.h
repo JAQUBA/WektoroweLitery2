@@ -18,6 +18,16 @@ class LogWindow;
 // Forward declarations — application classes
 class Document;
 
+// Tool preset
+struct ToolPreset {
+    std::string name;
+    std::string diameter;
+    std::string stepover;
+    std::string materialThickness;
+    std::string textDepth;
+    std::string safeHeight;
+};
+
 // ============================================================================
 // UI Components (global — accessible from multiple modules)
 // ============================================================================
@@ -46,6 +56,10 @@ extern std::string     exportMaterialThickness;
 extern std::string     exportTextDepth;
 extern std::string     exportSafeHeight;
 extern bool            gridVisible;
+
+// Tool presets
+extern std::vector<ToolPreset> toolPresets;
+extern int             activeToolIndex;
 
 // Machine workspace size (mm)
 extern double          workspaceWidth;
@@ -85,5 +99,8 @@ void doSaveFile();
 void doSaveFileAs();
 void doShowWorkspaceSettings();
 void doRelayout();
+void applyActiveToolPreset();
+void doSelectTool(int index);
+void doShowToolPresets();
 
 #endif // APP_STATE_H
