@@ -129,19 +129,55 @@ void createUI(SimpleWindow* win) {
         [](Button*) { doExportGCode(); }),
         CLR_EXPORT_BG, CLR_EXPORT_TEXT, CLR_EXPORT_HOVER);
 
-    styleBtn(win, new Button(m + 115, y, 90, 26, "Reset View",
-        [](Button*) {
-            extern VectorCanvas* canvas;
-            if (canvas) canvas->resetView();
-        }),
-        CLR_TOOL_BG, CLR_TOOL_TEXT, CLR_TOOL_HOVER);
-
     // Tool preset selector button
-    auto* toolBtn = new Button(m + 225, y, 200, 26, "Tool",
+    auto* toolBtn = new Button(m + 115, y, 200, 26, "Tool",
         [](Button*) { showToolPopup(); });
     styleBtn(win, toolBtn, CLR_TOOL_BG, CLR_TOOL_TEXT, CLR_TOOL_HOVER);
     hToolButton = toolBtn->getHandle();
     updateToolButtonText();
+
+    // --- Material parameter fields ---
+    int px = m + 320;
+
+    auto* lblMat = new Label(px, y + 3, 60, 20, L"Material:");
+    win->add(lblMat);
+    lblMat->setFont(L"Segoe UI", 11, true);
+    lblMat->setTextColor(CLR_LABEL_TEXT);
+    lblMat->setBackColor(CLR_WIN_BG);
+
+    fldMaterial = new InputField(px + 63, y, 55, 24, exportMaterialThickness.c_str(),
+        [](InputField* f, const char* text) {
+            exportMaterialThickness = text;
+        });
+    win->add(fldMaterial);
+
+    px += 125;
+
+    auto* lblDep = new Label(px, y + 3, 48, 20, L"Depth:");
+    win->add(lblDep);
+    lblDep->setFont(L"Segoe UI", 11, true);
+    lblDep->setTextColor(CLR_LABEL_TEXT);
+    lblDep->setBackColor(CLR_WIN_BG);
+
+    fldDepth = new InputField(px + 51, y, 55, 24, exportTextDepth.c_str(),
+        [](InputField* f, const char* text) {
+            exportTextDepth = text;
+        });
+    win->add(fldDepth);
+
+    px += 113;
+
+    auto* lblSafe = new Label(px, y + 3, 48, 20, L"Safe H:");
+    win->add(lblSafe);
+    lblSafe->setFont(L"Segoe UI", 11, true);
+    lblSafe->setTextColor(CLR_LABEL_TEXT);
+    lblSafe->setBackColor(CLR_WIN_BG);
+
+    fldSafeH = new InputField(px + 51, y, 55, 24, exportSafeHeight.c_str(),
+        [](InputField* f, const char* text) {
+            exportSafeHeight = text;
+        });
+    win->add(fldSafeH);
 
     y += 30;
 

@@ -23,9 +23,6 @@ struct ToolPreset {
     std::string name;
     std::string diameter;
     std::string stepover;
-    std::string materialThickness;
-    std::string textDepth;
-    std::string safeHeight;
 };
 
 // ============================================================================
@@ -36,6 +33,14 @@ extern Label*          lblStatus;
 extern Label*          lblInfo;
 extern LogWindow*      logWindow;
 extern HWND            hEditor;       // Layout file inline editor (multiline EDIT)
+
+// Forward declarations — InputField
+class InputField;
+
+// Material parameter input fields (visible in toolbar)
+extern InputField*     fldMaterial;
+extern InputField*     fldDepth;
+extern InputField*     fldSafeH;
 
 // ============================================================================
 // Application objects

@@ -15,6 +15,7 @@ public:
     ~VectorCanvas() override;
 
     void setDocument(const Document* doc);
+    void fitToContent();
 
 protected:
     void onDraw(HDC hdc, const RECT& clientRect) override;

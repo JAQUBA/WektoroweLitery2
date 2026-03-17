@@ -21,6 +21,37 @@ void VectorCanvas::setDocument(const Document* doc) {
     redraw();
 }
 
+void VectorCanvas::fitToContent() {
+    if (!m_hwnd) return;
+    RECT rc;
+    GetClientRect(m_hwnd, &rc);
+    int clientW = rc.right;
+    int clientH = rc.bottom;
+    if (clientW <= 0 || clientH <= 0) return;
+
+    double worldW = workspaceWidth;
+    double worldH = workspaceHeight;
+    if (worldW <= 0 || worldH <= 0) return;
+
+    int margin = 20;
+    double availW = clientW - 2.0 * margin;
+    double availH = clientH - 2.0 * margin;
+    if (availW <= 0 || availH <= 0) return;
+
+    double zoomW = availW / (worldW * 10.0);
+    double zoomH = availH / (worldH * 10.0);
+    double zoom = (zoomW < zoomH) ? zoomW : zoomH;
+
+    double usedW = worldW * zoom * 10.0;
+    double usedH = worldH * zoom * 10.0;
+    double panX = (clientW - usedW) / 2.0;
+    double panY = (clientH - usedH) / 2.0;
+
+    setDefaultZoom(zoom);
+    setDefaultPan(panX, panY);
+    redraw();
+}
+
 // ============================================================================
 // Drawing
 // ============================================================================
