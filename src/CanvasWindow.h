@@ -24,7 +24,9 @@ private:
 
     HPEN m_penVector = nullptr;
     HPEN m_penFrame = nullptr;
+    HPEN m_penWorkspace = nullptr;
 
+    void drawWorkspaceBounds(HDC hdc);
     void drawDocument(HDC hdc);
     void drawNameplate(HDC hdc, const Nameplate& plate);
     void drawPolyline(HDC hdc, const PointCollection& points, double scale, HPEN pen);

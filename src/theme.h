@@ -44,4 +44,11 @@
 #define CLR_EDITOR_BG       CLR_BG
 #define CLR_EDITOR_TEXT     CLR_TEXT
 
+/* Splitter */
+#define CLR_SPLITTER        CLR_SURFACE3
+#define CLR_SPLITTER_HOVER  CLR_ACCENT
+
+/* Workspace boundary */
+#define CLR_WORKSPACE_LINE  CLR_SURFACE3
+
 #endif /* THEME_H */

@@ -37,15 +37,19 @@ void setup() {
     // --- Menu bar ---
     createAppMenu(window);
 
-    // --- UI components (toolbar + editor) ---
+    // --- UI components (toolbar + editor + splitter) ---
     createUI(window);
 
-    // --- Canvas (right side of editor, y=64 to match editor row) ---
+    // --- Canvas (positioned by doRelayout) ---
     canvas = new VectorCanvas();
-    canvas->create(window->getHandle(), 365, 64, 810, 525);
+    canvas->create(window->getHandle(), 0, 0, 100, 100);
     canvas->setBackgroundColor(CLR_CANVAS_BG);
     canvas->setGridColor(CLR_GRID_LINE);
     canvas->setGridVisible(gridVisible);
+    canvas->setGridExtent(workspaceWidth, workspaceHeight);
+
+    // Position editor + splitter + canvas
+    doRelayout();
 
     // --- Load last file into editor ---
     if (!currentFilePath.empty()) {
@@ -54,10 +58,13 @@ void setup() {
             std::string content((std::istreambuf_iterator<char>(f)),
                                  std::istreambuf_iterator<char>());
             f.close();
-            setEditorText(content);
+            setEditorTextUI(content);
         }
     }
     updateWindowTitle();
+
+    // Initial render
+    doRenderPreview();
 
     // --- Save settings on close ---
     window->onClose([]() {

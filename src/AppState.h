@@ -47,6 +47,13 @@ extern std::string     exportTextDepth;
 extern std::string     exportSafeHeight;
 extern bool            gridVisible;
 
+// Machine workspace size (mm)
+extern double          workspaceWidth;
+extern double          workspaceHeight;
+
+// Editor splitter position (pixels from left edge of content area)
+extern int             editorWidth;
+
 // ============================================================================
 // Helper functions
 // ============================================================================
@@ -68,7 +75,7 @@ std::string saveFileDialog(HWND owner, const wchar_t* filter, const wchar_t* tit
                             const wchar_t* defaultExt, const std::string& initialDir);
 
 // Shared actions (used by UI buttons and menu)
-void doRunDocument();
+void doRenderPreview();
 void doExportGCode();
 void doToggleLogWindow();
 void doToggleGrid();
@@ -76,5 +83,7 @@ void doNewFile();
 void doOpenFile();
 void doSaveFile();
 void doSaveFileAs();
+void doShowWorkspaceSettings();
+void doRelayout();
 
 #endif // APP_STATE_H

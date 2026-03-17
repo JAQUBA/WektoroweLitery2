@@ -21,7 +21,6 @@ void createAppMenu(SimpleWindow* win) {
         m.addItem(L"Save", []() { doSaveFile(); });
         m.addItem(L"Save As...", []() { doSaveFileAs(); });
         m.addSeparator();
-        m.addItem(L"Run document", []() { doRunDocument(); });
         m.addItem(L"Export G-Code", []() { doExportGCode(); });
         m.addSeparator();
         m.addItem(L"Exit", []() {
@@ -38,6 +37,11 @@ void createAppMenu(SimpleWindow* win) {
         });
         m.addSeparator();
         m.addItem(L"Log window", []() { doToggleLogWindow(); });
+    });
+
+    // --- Settings ---
+    menuBar->addMenu(L"Settings", [](PopupMenu& m) {
+        m.addItem(L"Machine workspace size...", []() { doShowWorkspaceSettings(); });
     });
 
     // --- Help ---

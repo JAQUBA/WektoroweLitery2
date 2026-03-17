@@ -2,6 +2,7 @@
 // AppState.cpp — Global state definitions, settings, shared actions
 // ============================================================================
 #include "AppState.h"
+#include "AppUI.h"
 #include "Document.h"
 #include "DocumentParser.h"
 #include "GCodeEngine.h"
@@ -17,6 +18,7 @@
 #include <vector>
 #include <algorithm>
 #include <fstream>
+#include <stdexcept>
 
 // ============================================================================
 // Global variable definitions
@@ -41,6 +43,10 @@ std::string    exportMaterialThickness = "1,50";
 std::string    exportTextDepth = "0,20";
 std::string    exportSafeHeight = "5,00";
 bool           gridVisible   = true;
+
+double         workspaceWidth  = 300.0;
+double         workspaceHeight = 200.0;
+int            editorWidth     = 345;
 
 static bool fileExists(const std::string& path) {
     DWORD attrs = GetFileAttributesA(path.c_str());
@@ -120,6 +126,18 @@ void loadSettings() {
     exportTextDepth = config.getValue("export_text_depth", "0,20");
     exportSafeHeight = config.getValue("export_safe_height", "5,00");
     gridVisible   = config.getValue("grid_visible", "1") == "1";
+
+    double w = 300.0, h = 200.0;
+    if (tryParseDouble(config.getValue("workspace_width", "300"), w) && w > 0)
+        workspaceWidth = w;
+    if (tryParseDouble(config.getValue("workspace_height", "200"), h) && h > 0)
+        workspaceHeight = h;
+
+    int ew = 345;
+    try { ew = std::stoi(config.getValue("editor_width", "345")); } catch (...) {}
+    if (ew < 100) ew = 100;
+    if (ew > 800) ew = 800;
+    editorWidth = ew;
 }
 
 void saveSettings() {
@@ -133,6 +151,19 @@ void saveSettings() {
     config.setValue("export_text_depth", exportTextDepth);
     config.setValue("export_safe_height", exportSafeHeight);
     config.setValue("grid_visible", gridVisible ? "1" : "0");
+
+    {
+        char buf[64];
+        _snprintf(buf, 64, "%.1f", workspaceWidth);
+        config.setValue("workspace_width", buf);
+        _snprintf(buf, 64, "%.1f", workspaceHeight);
+        config.setValue("workspace_height", buf);
+    }
+    {
+        char buf[16];
+        _snprintf(buf, 16, "%d", editorWidth);
+        config.setValue("editor_width", buf);
+    }
 }
 
 // ============================================================================
@@ -220,9 +251,10 @@ void updateWindowTitle() {
 // Shared actions
 // ============================================================================
 void doNewFile() {
-    setEditorText("");
+    setEditorTextUI("");
     currentFilePath = "";
     updateWindowTitle();
+    doRenderPreview();
     logMsg(L"New document");
 }
 
@@ -241,10 +273,11 @@ void doOpenFile() {
                          std::istreambuf_iterator<char>());
     f.close();
 
-    setEditorText(content);
+    setEditorTextUI(content);
     currentFilePath = path;
     lastInputDir = extractDir(path);
     updateWindowTitle();
+    doRenderPreview();
     logMsg(L"Opened: " + StringUtils::utf8ToWide(path));
 }
 
@@ -276,30 +309,26 @@ void doSaveFileAs() {
     updateWindowTitle();
 }
 
-void doRunDocument() {
+void doRenderPreview() {
     std::string content = getEditorText();
     if (content.empty()) {
-        logMsg(L"Editor is empty");
+        if (currentDocument) {
+            delete currentDocument;
+            currentDocument = nullptr;
+        }
+        if (canvas) {
+            canvas->setDocument(nullptr);
+            canvas->redraw();
+        }
         return;
     }
-    if (csvDirectory.empty()) {
-        logMsg(L"Fonts directory not set");
-        return;
-    }
-
-    if (!fileExists(csvDirectory + "65.csv")) {
-        std::wstring msg = L"Font CSV files not found in: " + StringUtils::utf8ToWide(csvDirectory);
-        logMsg(msg);
-        return;
-    }
-
-    logMsg(L"Parsing document...");
+    if (csvDirectory.empty()) return;
+    if (!fileExists(csvDirectory + "65.csv")) return;
 
     double diam = 0.0, step = 0.0;
     if (!tryParseDouble(exportDiameter, diam) ||
         !tryParseDouble(exportStepover, step) ||
         diam <= 0 || step <= 0) {
-        logMsg(L"Invalid tool parameters. Use positive values (e.g. 0,30 / 0,15)");
         return;
     }
 
@@ -308,22 +337,18 @@ void doRunDocument() {
         currentDocument = nullptr;
     }
 
-    Document doc = DocumentParser::parseString(content, csvDirectory, diam, step);
-    currentDocument = new Document(doc);
+    try {
+        Document doc = DocumentParser::parseString(content, csvDirectory, diam, step);
+        currentDocument = new Document(doc);
+    } catch (const std::exception&) {
+        // Syntax error in editor content — skip rendering
+        return;
+    }
 
     if (canvas) {
         canvas->setDocument(currentDocument);
         canvas->redraw();
     }
-
-    if (lblInfo) {
-        int rowCount = (int)currentDocument->getRows().size();
-        wchar_t info[128];
-        _snwprintf(info, 128, L"Parsed: %d rows", rowCount);
-        lblInfo->setText(info);
-    }
-
-    logMsg(L"Document parsed and rendered");
 }
 
 void doExportGCode() {
@@ -332,10 +357,17 @@ void doExportGCode() {
         logMsg(L"Editor is empty");
         return;
     }
+
+    // Auto-show save dialog if no output file is set
     if (lastOutputFile.empty()) {
-        logMsg(L"No output file specified");
-        return;
+        std::string path = saveFileDialog(window->getHandle(),
+            L"G-Code files (*.gcode)\0*.gcode\0All files (*.*)\0*.*\0",
+            L"Export G-Code file", L"gcode", lastOutputDir);
+        if (path.empty()) return;
+        lastOutputFile = path;
+        lastOutputDir = extractDir(path);
     }
+
     if (csvDirectory.empty()) {
         logMsg(L"Fonts directory not set");
         return;
@@ -420,5 +452,135 @@ void doToggleGrid() {
     gridVisible = !gridVisible;
     if (canvas) {
         canvas->setGridVisible(gridVisible);
+    }
+}
+
+// ============================================================================
+// Workspace settings dialog
+// ============================================================================
+static HWND s_hDlgWidth = nullptr;
+static HWND s_hDlgHeight = nullptr;
+
+static LRESULT CALLBACK WorkspaceDlgProc(
+    HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_CREATE: {
+            CreateWindowExW(0, L"STATIC", L"Width (mm):", WS_CHILD | WS_VISIBLE,
+                            20, 20, 100, 22, hwnd, NULL, _core.hInstance, NULL);
+            s_hDlgWidth = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
+                WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+                130, 18, 100, 24, hwnd, NULL, _core.hInstance, NULL);
+
+            CreateWindowExW(0, L"STATIC", L"Height (mm):", WS_CHILD | WS_VISIBLE,
+                            20, 55, 100, 22, hwnd, NULL, _core.hInstance, NULL);
+            s_hDlgHeight = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
+                WS_CHILD | WS_VISIBLE | ES_AUTOHSCROLL,
+                130, 53, 100, 24, hwnd, NULL, _core.hInstance, NULL);
+
+            CreateWindowExW(0, L"BUTTON", L"OK",
+                WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+                50, 95, 80, 28, hwnd, (HMENU)1, _core.hInstance, NULL);
+            CreateWindowExW(0, L"BUTTON", L"Cancel",
+                WS_CHILD | WS_VISIBLE,
+                150, 95, 80, 28, hwnd, (HMENU)2, _core.hInstance, NULL);
+
+            // Fill current values
+            wchar_t buf[64];
+            _snwprintf(buf, 64, L"%.1f", workspaceWidth);
+            SetWindowTextW(s_hDlgWidth, buf);
+            _snwprintf(buf, 64, L"%.1f", workspaceHeight);
+            SetWindowTextW(s_hDlgHeight, buf);
+            return 0;
+        }
+        case WM_COMMAND:
+            if (LOWORD(wParam) == 1) { // OK
+                wchar_t buf[64];
+                GetWindowTextW(s_hDlgWidth, buf, 64);
+                std::string sw = StringUtils::wideToUtf8(buf);
+                GetWindowTextW(s_hDlgHeight, buf, 64);
+                std::string sh = StringUtils::wideToUtf8(buf);
+
+                double w = 0.0, h = 0.0;
+                if (tryParseDouble(sw, w) && tryParseDouble(sh, h) && w > 0 && h > 0) {
+                    workspaceWidth = w;
+                    workspaceHeight = h;
+                    if (canvas) {
+                        canvas->setGridExtent(workspaceWidth, workspaceHeight);
+                        canvas->redraw();
+                    }
+                    saveSettings();
+                }
+                DestroyWindow(hwnd);
+            } else if (LOWORD(wParam) == 2) { // Cancel
+                DestroyWindow(hwnd);
+            }
+            return 0;
+        case WM_DESTROY:
+            EnableWindow(window->getHandle(), TRUE);
+            SetForegroundWindow(window->getHandle());
+            return 0;
+        case WM_CLOSE:
+            DestroyWindow(hwnd);
+            return 0;
+    }
+    return DefWindowProcW(hwnd, msg, wParam, lParam);
+}
+
+void doShowWorkspaceSettings() {
+    static bool classRegistered = false;
+    if (!classRegistered) {
+        WNDCLASSEXW wc = {};
+        wc.cbSize = sizeof(wc);
+        wc.lpfnWndProc = WorkspaceDlgProc;
+        wc.hInstance = _core.hInstance;
+        wc.hCursor = LoadCursorW(NULL, (LPCWSTR)IDC_ARROW);
+        wc.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
+        wc.lpszClassName = L"WL2_WorkspaceDlg";
+        RegisterClassExW(&wc);
+        classRegistered = true;
+    }
+
+    EnableWindow(window->getHandle(), FALSE);
+
+    RECT parentRect;
+    GetWindowRect(window->getHandle(), &parentRect);
+    int cx = (parentRect.left + parentRect.right) / 2 - 145;
+    int cy = (parentRect.top + parentRect.bottom) / 2 - 80;
+
+    CreateWindowExW(WS_EX_DLGMODALFRAME,
+        L"WL2_WorkspaceDlg", L"Machine Workspace Size",
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_VISIBLE,
+        cx, cy, 290, 170,
+        window->getHandle(), NULL, _core.hInstance, NULL);
+}
+
+// ============================================================================
+// Relayout — reposition editor + canvas after splitter move or window resize
+// ============================================================================
+void doRelayout() {
+    if (!window) return;
+    HWND hwnd = window->getHandle();
+    RECT rc;
+    GetClientRect(hwnd, &rc);
+
+    int contentTop = 64;       // below toolbar rows
+    int margin = 10;
+    int splitterW = 6;
+    int contentH = rc.bottom - contentTop - 6;
+
+    if (editorWidth < 100) editorWidth = 100;
+    if (editorWidth > rc.right - 200) editorWidth = rc.right - 200;
+
+    if (hEditor) {
+        MoveWindow(hEditor, margin, contentTop, editorWidth - margin, contentH, TRUE);
+    }
+    if (hSplitter) {
+        MoveWindow(hSplitter, editorWidth, contentTop, splitterW, contentH, TRUE);
+    }
+    if (canvas) {
+        int canvasX = editorWidth + splitterW;
+        int canvasW = rc.right - canvasX - margin;
+        if (canvasW < 50) canvasW = 50;
+        MoveWindow(canvas->getHandle(), canvasX, contentTop, canvasW, contentH, TRUE);
     }
 }

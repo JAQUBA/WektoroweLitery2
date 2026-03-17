@@ -25,6 +25,17 @@ static void styleBtn(SimpleWindow* win, Button* btn,
 // --- Dark theme subclass for editor EDIT control ---
 static HBRUSH hEditorBgBrush = NULL;
 
+// --- Splitter drag state ---
+HWND hSplitter = nullptr;
+static bool splitterDragging = false;
+static int  splitterDragStartX = 0;
+static int  splitterDragStartEditorW = 0;
+
+// --- Debounced auto-render ---
+static const UINT_PTR RENDER_TIMER_ID = 42;
+static const UINT RENDER_DELAY_MS = 300;
+static bool editorChangeIgnore = false;  // suppress EN_CHANGE during setEditorText
+
 static LRESULT CALLBACK EditorParentSubclassProc(
     HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
     UINT_PTR, DWORD_PTR) {
@@ -39,7 +50,84 @@ static LRESULT CALLBACK EditorParentSubclassProc(
             return (LRESULT)hEditorBgBrush;
         }
     }
+
+    // Editor auto-render on text change (debounced)
+    if (msg == WM_COMMAND && HIWORD(wParam) == EN_CHANGE) {
+        HWND hCtrl = (HWND)lParam;
+        if (hCtrl == hEditor && !editorChangeIgnore) {
+            KillTimer(hwnd, RENDER_TIMER_ID);
+            SetTimer(hwnd, RENDER_TIMER_ID, RENDER_DELAY_MS, NULL);
+        }
+    }
+
+    if (msg == WM_TIMER && wParam == RENDER_TIMER_ID) {
+        KillTimer(hwnd, RENDER_TIMER_ID);
+        doRenderPreview();
+        return 0;
+    }
+
     return DefSubclassProc(hwnd, msg, wParam, lParam);
+}
+
+// --- Splitter window procedure ---
+static HBRUSH hSplitterBrush = NULL;
+static HBRUSH hSplitterBrushHover = NULL;
+static bool   splitterHovered = false;
+
+static LRESULT CALLBACK SplitterProc(
+    HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    switch (msg) {
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hwnd, &ps);
+            RECT rc;
+            GetClientRect(hwnd, &rc);
+            if (!hSplitterBrush) hSplitterBrush = CreateSolidBrush(CLR_SPLITTER);
+            if (!hSplitterBrushHover) hSplitterBrushHover = CreateSolidBrush(CLR_SPLITTER_HOVER);
+            FillRect(hdc, &rc, (splitterDragging || splitterHovered)
+                     ? hSplitterBrushHover : hSplitterBrush);
+            EndPaint(hwnd, &ps);
+            return 0;
+        }
+        case WM_MOUSEMOVE:
+            if (!splitterHovered) {
+                splitterHovered = true;
+                TRACKMOUSEEVENT tme = { sizeof(tme), TME_LEAVE, hwnd, 0 };
+                TrackMouseEvent(&tme);
+                InvalidateRect(hwnd, NULL, FALSE);
+            }
+            if (splitterDragging) {
+                POINT pt;
+                GetCursorPos(&pt);
+                int delta = pt.x - splitterDragStartX;
+                editorWidth = splitterDragStartEditorW + delta;
+                doRelayout();
+            }
+            return 0;
+        case WM_MOUSELEAVE:
+            splitterHovered = false;
+            InvalidateRect(hwnd, NULL, FALSE);
+            return 0;
+        case WM_LBUTTONDOWN:
+            splitterDragging = true;
+            splitterDragStartEditorW = editorWidth;
+            POINT pt;
+            GetCursorPos(&pt);
+            splitterDragStartX = pt.x;
+            SetCapture(hwnd);
+            return 0;
+        case WM_LBUTTONUP:
+            if (splitterDragging) {
+                splitterDragging = false;
+                ReleaseCapture();
+                InvalidateRect(hwnd, NULL, FALSE);
+            }
+            return 0;
+        case WM_SETCURSOR:
+            SetCursor(LoadCursorW(NULL, (LPCWSTR)IDC_SIZEWE));
+            return TRUE;
+    }
+    return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
 void createUI(SimpleWindow* win) {
@@ -47,15 +135,11 @@ void createUI(SimpleWindow* win) {
     int m = 10;
 
     // --- Row 1: Action buttons + Tool parameters ---
-    styleBtn(win, new Button(m, y, 80, 26, "Run",
-        [](Button*) { doRunDocument(); }),
-        CLR_ACTION_BG, CLR_ACTION_TEXT, CLR_ACTION_HOVER);
-
-    styleBtn(win, new Button(m + 85, y, 110, 26, "Export GCode",
+    styleBtn(win, new Button(m, y, 110, 26, "Export GCode",
         [](Button*) { doExportGCode(); }),
         CLR_EXPORT_BG, CLR_EXPORT_TEXT, CLR_EXPORT_HOVER);
 
-    styleBtn(win, new Button(m + 200, y, 90, 26, "Reset View",
+    styleBtn(win, new Button(m + 115, y, 90, 26, "Reset View",
         [](Button*) {
             extern VectorCanvas* canvas;
             if (canvas) canvas->resetView();
@@ -63,7 +147,7 @@ void createUI(SimpleWindow* win) {
         CLR_TOOL_BG, CLR_TOOL_TEXT, CLR_TOOL_HOVER);
 
     // Tool parameters (compact, same row)
-    int px = m + 310;
+    int px = m + 225;
     auto addParam = [&](const wchar_t* label, int lw, int fw, std::string* varPtr) {
         auto* lbl = new Label(px, y + 3, lw, 20, label);
         win->add(lbl);
@@ -73,7 +157,10 @@ void createUI(SimpleWindow* win) {
         px += lw;
 
         auto* field = new InputField(px, y, fw, 24, varPtr->c_str(),
-            [varPtr](InputField*, const char* text) { *varPtr = text; });
+            [varPtr](InputField*, const char* text) {
+                *varPtr = text;
+                doRenderPreview();
+            });
         field->setMaxLength(32);
         win->add(field);
         px += fw + 5;
@@ -129,7 +216,7 @@ void createUI(SimpleWindow* win) {
         WS_CHILD | WS_VISIBLE |
         ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN |
         WS_VSCROLL | WS_HSCROLL,
-        m, y, 345, 525,
+        m, y, editorWidth - m, 525,
         win->getHandle(),
         NULL,
         _core.hInstance, NULL);
@@ -145,6 +232,34 @@ void createUI(SimpleWindow* win) {
     DWORD tabStop = 16;
     SendMessageW(hEditor, EM_SETTABSTOPS, 1, (LPARAM)&tabStop);
 
+    // --- Splitter ---
+    static bool splitterClassReg = false;
+    if (!splitterClassReg) {
+        WNDCLASSEXW wc = {};
+        wc.cbSize = sizeof(wc);
+        wc.lpfnWndProc = SplitterProc;
+        wc.hInstance = _core.hInstance;
+        wc.hCursor = LoadCursorW(NULL, (LPCWSTR)IDC_SIZEWE);
+        wc.lpszClassName = L"WL2_Splitter";
+        RegisterClassExW(&wc);
+        splitterClassReg = true;
+    }
+
+    hSplitter = CreateWindowExW(0,
+        L"WL2_Splitter", L"",
+        WS_CHILD | WS_VISIBLE,
+        editorWidth, y, 6, 525,
+        win->getHandle(), NULL, _core.hInstance, NULL);
+
     // Dark theme for the editor via parent subclass
     SetWindowSubclass(win->getHandle(), EditorParentSubclassProc, 1, 0);
+}
+
+// ============================================================================
+// setEditorText wrapper — suppress EN_CHANGE during programmatic text set
+// ============================================================================
+void setEditorTextUI(const std::string& text) {
+    editorChangeIgnore = true;
+    setEditorText(text);
+    editorChangeIgnore = false;
 }

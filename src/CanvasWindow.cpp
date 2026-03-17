@@ -2,15 +2,18 @@
 // CanvasWindow.cpp — Application-specific canvas for vector document rendering
 // ============================================================================
 #include "CanvasWindow.h"
+#include "AppState.h"
 
 VectorCanvas::VectorCanvas() {
     m_penVector = CreatePen(PS_SOLID, 1, CLR_VECTOR_LINE);
     m_penFrame = CreatePen(PS_SOLID, 2, CLR_FRAME_LINE);
+    m_penWorkspace = CreatePen(PS_DASH, 1, CLR_WORKSPACE_LINE);
 }
 
 VectorCanvas::~VectorCanvas() {
     if (m_penVector) { DeleteObject(m_penVector); m_penVector = nullptr; }
     if (m_penFrame) { DeleteObject(m_penFrame); m_penFrame = nullptr; }
+    if (m_penWorkspace) { DeleteObject(m_penWorkspace); m_penWorkspace = nullptr; }
 }
 
 void VectorCanvas::setDocument(const Document* doc) {
@@ -22,7 +25,20 @@ void VectorCanvas::setDocument(const Document* doc) {
 // Drawing
 // ============================================================================
 void VectorCanvas::onDraw(HDC hdc, const RECT& rc) {
+    drawWorkspaceBounds(hdc);
     if (m_document) drawDocument(hdc);
+}
+
+void VectorCanvas::drawWorkspaceBounds(HDC hdc) {
+    HPEN oldPen = (HPEN)SelectObject(hdc, m_penWorkspace);
+    HBRUSH oldBrush = (HBRUSH)SelectObject(hdc, GetStockObject(NULL_BRUSH));
+    int left   = toScreenX(0);
+    int bottom = toScreenY(0);
+    int right  = toScreenX(workspaceWidth);
+    int top    = toScreenY(workspaceHeight);
+    Rectangle(hdc, left, top, right, bottom);
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
 }
 
 void VectorCanvas::drawDocument(HDC hdc) {
