@@ -225,7 +225,17 @@ std::string getEditorText() {
     std::wstring buf(len + 1, L'\0');
     GetWindowTextW(hEditor, &buf[0], len + 1);
     buf.resize(len);
-    return StringUtils::wideToUtf8(buf);
+    std::string result = StringUtils::wideToUtf8(buf);
+    // Normalize line endings (RichEdit may use \r only)
+    size_t pos = 0;
+    while ((pos = result.find('\r', pos)) != std::string::npos) {
+        if (pos + 1 < result.size() && result[pos + 1] == '\n') {
+            result.erase(pos, 1);
+        } else {
+            result[pos] = '\n';
+        }
+    }
+    return result;
 }
 
 void setEditorText(const std::string& text) {
@@ -337,13 +347,11 @@ void doRenderPreview() {
         currentDocument = nullptr;
     }
 
-    try {
-        Document doc = DocumentParser::parseString(content, csvDirectory, diam, step);
-        currentDocument = new Document(doc);
-    } catch (const std::exception&) {
-        // Syntax error in editor content — skip rendering
-        return;
-    }
+    std::vector<int> errorLines;
+    Document doc = DocumentParser::parseString(content, csvDirectory, diam, step, &errorLines);
+    currentDocument = new Document(doc);
+
+    highlightEditorErrors(errorLines);
 
     if (canvas) {
         canvas->setDocument(currentDocument);

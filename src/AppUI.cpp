@@ -13,6 +13,7 @@
 #include <UI/InputField/InputField.h>
 #include <Util/StringUtils.h>
 #include <commctrl.h>
+#include <richedit.h>
 
 static void styleBtn(SimpleWindow* win, Button* btn,
                      COLORREF bg, COLORREF text, COLORREF hover) {
@@ -22,8 +23,7 @@ static void styleBtn(SimpleWindow* win, Button* btn,
     win->add(btn);
 }
 
-// --- Dark theme subclass for editor EDIT control ---
-static HBRUSH hEditorBgBrush = NULL;
+// --- Dark theme for editor — no longer needed (RichEdit uses EM_SETBKGNDCOLOR) ---
 
 // --- Splitter drag state ---
 HWND hSplitter = nullptr;
@@ -39,18 +39,6 @@ static bool editorChangeIgnore = false;  // suppress EN_CHANGE during setEditorT
 static LRESULT CALLBACK EditorParentSubclassProc(
     HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
     UINT_PTR, DWORD_PTR) {
-    if (msg == WM_CTLCOLOREDIT) {
-        HWND hCtrl = (HWND)lParam;
-        if (hCtrl == hEditor) {
-            HDC hdc = (HDC)wParam;
-            SetTextColor(hdc, CLR_EDITOR_TEXT);
-            SetBkColor(hdc, CLR_EDITOR_BG);
-            if (!hEditorBgBrush)
-                hEditorBgBrush = CreateSolidBrush(CLR_EDITOR_BG);
-            return (LRESULT)hEditorBgBrush;
-        }
-    }
-
     // Editor auto-render on text change (debounced)
     if (msg == WM_COMMAND && HIWORD(wParam) == EN_CHANGE) {
         HWND hCtrl = (HWND)lParam;
@@ -209,10 +197,12 @@ void createUI(SimpleWindow* win) {
 
     y += 30;
 
-    // --- Layout editor (multiline EDIT control) ---
+    // --- Layout editor (RichEdit control) ---
+    LoadLibraryW(L"Msftedit.dll");
+
     hEditor = CreateWindowExW(
         WS_EX_CLIENTEDGE,
-        L"EDIT", L"",
+        L"RICHEDIT50W", L"",
         WS_CHILD | WS_VISIBLE |
         ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN |
         WS_VSCROLL | WS_HSCROLL,
@@ -221,16 +211,21 @@ void createUI(SimpleWindow* win) {
         NULL,
         _core.hInstance, NULL);
 
-    // Monospace font for the editor
-    HFONT hEditorFont = CreateFontW(
-        16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-        CLEARTYPE_QUALITY, FIXED_PITCH | FF_MODERN, L"Consolas");
-    SendMessageW(hEditor, WM_SETFONT, (WPARAM)hEditorFont, TRUE);
+    // Enable EN_CHANGE notifications for RichEdit
+    SendMessageW(hEditor, EM_SETEVENTMASK, 0,
+        SendMessageW(hEditor, EM_GETEVENTMASK, 0, 0) | ENM_CHANGE);
 
-    // Set tab stops (16 dialog units ≈ 4 chars in monospace font)
-    DWORD tabStop = 16;
-    SendMessageW(hEditor, EM_SETTABSTOPS, 1, (LPARAM)&tabStop);
+    // Set background color
+    SendMessageW(hEditor, EM_SETBKGNDCOLOR, 0, (LPARAM)CLR_EDITOR_BG);
+
+    // Set default character format (Consolas 12pt, editor text color)
+    CHARFORMAT2W cf = {};
+    cf.cbSize = sizeof(cf);
+    cf.dwMask = CFM_FACE | CFM_SIZE | CFM_COLOR;
+    cf.yHeight = 240; // 12pt in twips
+    cf.crTextColor = CLR_EDITOR_TEXT;
+    lstrcpynW(cf.szFaceName, L"Consolas", LF_FACESIZE);
+    SendMessageW(hEditor, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cf);
 
     // --- Splitter ---
     static bool splitterClassReg = false;
@@ -262,4 +257,55 @@ void setEditorTextUI(const std::string& text) {
     editorChangeIgnore = true;
     setEditorText(text);
     editorChangeIgnore = false;
+}
+
+// ============================================================================
+// Highlight error lines in the RichEdit editor
+// ============================================================================
+void highlightEditorErrors(const std::vector<int>& errorLines) {
+    if (!hEditor) return;
+
+    SendMessageW(hEditor, WM_SETREDRAW, FALSE, 0);
+
+    // Save current selection
+    CHARRANGE crOld;
+    SendMessageW(hEditor, EM_EXGETSEL, 0, (LPARAM)&crOld);
+
+    // Reset all text to default format (no underline, normal color)
+    CHARRANGE crAll = { 0, -1 };
+    SendMessageW(hEditor, EM_EXSETSEL, 0, (LPARAM)&crAll);
+
+    CHARFORMAT2W cfDefault = {};
+    cfDefault.cbSize = sizeof(cfDefault);
+    cfDefault.dwMask = CFM_COLOR | CFM_UNDERLINE;
+    cfDefault.crTextColor = CLR_EDITOR_TEXT;
+    cfDefault.dwEffects = 0;
+    SendMessageW(hEditor, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cfDefault);
+
+    // Apply error format to each error line
+    if (!errorLines.empty()) {
+        CHARFORMAT2W cfError = {};
+        cfError.cbSize = sizeof(cfError);
+        cfError.dwMask = CFM_COLOR | CFM_UNDERLINE;
+        cfError.crTextColor = CLR_ERROR_TEXT;
+        cfError.dwEffects = CFE_UNDERLINE;
+
+        for (int line : errorLines) {
+            LONG charIdx = (LONG)SendMessageW(hEditor, EM_LINEINDEX, (WPARAM)line, 0);
+            if (charIdx < 0) continue;
+            LONG lineLen = (LONG)SendMessageW(hEditor, EM_LINELENGTH, (WPARAM)charIdx, 0);
+            if (lineLen <= 0) continue;
+
+            CHARRANGE cr = { charIdx, charIdx + lineLen };
+            SendMessageW(hEditor, EM_EXSETSEL, 0, (LPARAM)&cr);
+            SendMessageW(hEditor, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cfError);
+        }
+    }
+
+    // Restore caret and set typing format to default
+    SendMessageW(hEditor, EM_EXSETSEL, 0, (LPARAM)&crOld);
+    SendMessageW(hEditor, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cfDefault);
+
+    SendMessageW(hEditor, WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(hEditor, NULL, TRUE);
 }

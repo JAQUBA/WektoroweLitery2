@@ -43,6 +43,7 @@
 /* Editor (layout file inline editor) */
 #define CLR_EDITOR_BG       CLR_BG
 #define CLR_EDITOR_TEXT     CLR_TEXT
+#define CLR_ERROR_TEXT      CLR_RED
 
 /* Splitter */
 #define CLR_SPLITTER        CLR_SURFACE3

@@ -16,6 +16,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cstdlib>
+#include <stdexcept>
 
 static std::string trim(const std::string& s) {
     size_t start = s.find_first_not_of(" \t\r\n");
@@ -58,7 +59,8 @@ static void stripUtf8BOM(std::string& s) {
 static Document parseStreamImpl(std::istream& input,
                                 const std::string& csvDir,
                                 double diameter,
-                                double stepover) {
+                                double stepover,
+                                std::vector<int>* errorLines = nullptr) {
     Document doc;
     doc.millingDiameter_mm = diameter;
     doc.stepover_mm = stepover;
@@ -75,13 +77,17 @@ static Document parseStreamImpl(std::istream& input,
 
     std::string line;
     bool firstLine = true;
+    int lineNumber = 0;
     while (std::getline(input, line)) {
         if (firstLine) {
             stripUtf8BOM(line);
             firstLine = false;
         }
+        int currentLine = lineNumber++;
         line = trim(line);
         if (line.empty()) continue;
+
+        try {
 
         auto row = split(line, separator);
         if (row.size() < 2 && toLower(row[0])[0] != 'l') continue;
@@ -153,6 +159,10 @@ static Document parseStreamImpl(std::istream& input,
                 break;
             }
         }
+
+        } catch (const std::exception&) {
+            if (errorLines) errorLines->push_back(currentLine);
+        }
     }
 
     // Flush last row if it has any nameplates (fixes missing final row
@@ -172,13 +182,14 @@ Document DocumentParser::parseFile(const std::string& fileName,
                                     double stepover) {
     std::ifstream file(fileName);
     if (!file.is_open()) return Document();
-    return parseStreamImpl(file, csvDir, diameter, stepover);
+    return parseStreamImpl(file, csvDir, diameter, stepover, nullptr);
 }
 
 Document DocumentParser::parseString(const std::string& content,
                                       const std::string& csvDir,
                                       double diameter,
-                                      double stepover) {
+                                      double stepover,
+                                      std::vector<int>* errorLines) {
     std::istringstream stream(content);
-    return parseStreamImpl(stream, csvDir, diameter, stepover);
+    return parseStreamImpl(stream, csvDir, diameter, stepover, errorLines);
 }

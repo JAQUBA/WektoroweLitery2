@@ -6,6 +6,7 @@
 
 #include <windows.h>
 #include <string>
+#include <vector>
 
 class SimpleWindow;
 
@@ -13,6 +14,9 @@ void createUI(SimpleWindow* window);
 
 // Wrapper to set editor text without triggering auto-render
 void setEditorTextUI(const std::string& text);
+
+// Highlight lines with parse errors (red underline) in the editor.
+void highlightEditorErrors(const std::vector<int>& errorLines);
 
 // Splitter handle (managed by AppUI, repositioned by doRelayout)
 extern HWND hSplitter;
