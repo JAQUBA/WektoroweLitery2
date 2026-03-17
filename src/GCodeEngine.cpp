@@ -9,14 +9,12 @@
 static std::string fmtF2(double val) {
     char buf[32];
     std::snprintf(buf, sizeof(buf), "%.2f", val);
-    for (char* p = buf; *p; p++) if (*p == '.') *p = ',';
     return buf;
 }
 
 static std::string fmtF3(double val) {
     char buf[32];
     std::snprintf(buf, sizeof(buf), "%.3f", val);
-    for (char* p = buf; *p; p++) if (*p == '.') *p = ',';
     return buf;
 }
 
@@ -27,8 +25,6 @@ GCodeEngine::GCodeEngine() {
 void GCodeEngine::init() {
     m_buffer.str("");
     m_buffer.clear();
-    m_lineCounter = 0;
-    m_lineJump = 5;
 }
 
 void GCodeEngine::dumpToFile(const std::string& fileName) {
@@ -46,91 +42,63 @@ void GCodeEngine::appendLine(const std::string& content) {
 }
 
 void GCodeEngine::prolog() {
-    char buf[64];
-
-    m_lineCounter += m_lineJump;
-    std::snprintf(buf, sizeof(buf), "N%04d G90", m_lineCounter);
-    appendLine(buf);
-
-    m_lineCounter += m_lineJump;
-    std::snprintf(buf, sizeof(buf), "N%04d G21", m_lineCounter);
-    appendLine(buf);
+    appendLine("G90");
+    appendLine("F1000");
+    appendLine("G21");
 
     if (!m_laserMode) {
-        m_lineCounter += m_lineJump;
-        std::snprintf(buf, sizeof(buf), "N%04d G00 Z0,20", m_lineCounter);
-        appendLine(buf);
+        appendLine("G00 Z0,20");
     }
 
-    m_lineCounter += m_lineJump;
-    std::snprintf(buf, sizeof(buf), "N%04d G00 X0,000 Y0,000", m_lineCounter);
-    appendLine(buf);
+    appendLine("G00 X0,000 Y0,000");
 }
 
 void GCodeEngine::epilog() {
-    char buf[64];
-
     if (!m_laserMode) {
-        m_lineCounter += m_lineJump;
-        std::snprintf(buf, sizeof(buf), "N%04d G00 Z0,20", m_lineCounter);
-        appendLine(buf);
+        appendLine("G00 Z0,20");
     } else {
-        std::snprintf(buf, sizeof(buf), "N%04d M05", m_lineCounter);
-        appendLine(buf);
+        appendLine("M05");
     }
 
-    m_lineCounter += m_lineJump;
-    std::snprintf(buf, sizeof(buf), "N%04d G00 X0,000 Y0,000", m_lineCounter);
-    appendLine(buf);
+    appendLine("G00 X0,000 Y0,000");
 
     if (!m_laserMode) {
-        m_lineCounter += m_lineJump;
-        std::snprintf(buf, sizeof(buf), "N%04d G00 Z0,20", m_lineCounter);
-        appendLine(buf);
-
-        m_lineCounter += m_lineJump;
-        std::snprintf(buf, sizeof(buf), "N%04d G00 X0 Y0", m_lineCounter);
-        appendLine(buf);
+        appendLine("G00 Z0,20");
+        appendLine("G00 X0 Y0");
     }
 
-    m_lineCounter += m_lineJump;
-    std::snprintf(buf, sizeof(buf), "N%04d M30", m_lineCounter);
-    appendLine(buf);
+    appendLine("M30");
 }
 
 void GCodeEngine::workingZ(double z) {
     char buf[64];
-    m_lineCounter += m_lineJump;
     if (!m_laserMode) {
-        std::snprintf(buf, sizeof(buf), "N%04d G01 Z%s", m_lineCounter, fmtF2(z).c_str());
+        std::snprintf(buf, sizeof(buf), "G01 Z%s", fmtF2(z).c_str());
     } else {
-        std::snprintf(buf, sizeof(buf), "N%04d M03", m_lineCounter);
+        std::snprintf(buf, sizeof(buf), "M03");
     }
     appendLine(buf);
 }
 
 void GCodeEngine::workingXY(double x, double y) {
     char buf[64];
-    m_lineCounter += m_lineJump;
-    std::snprintf(buf, sizeof(buf), "N%04d G01 X%s Y%s", m_lineCounter, fmtF3(x).c_str(), fmtF3(y).c_str());
+    std::snprintf(buf, sizeof(buf), "G01 X%s Y%s", fmtF3(x).c_str(), fmtF3(y).c_str());
     appendLine(buf);
 }
 
 void GCodeEngine::idleZ(double z) {
     char buf[64];
-    m_lineCounter += m_lineJump;
     if (!m_laserMode) {
-        std::snprintf(buf, sizeof(buf), "N%04d G00 Z%s", m_lineCounter, fmtF2(z).c_str());
+        std::snprintf(buf, sizeof(buf), "G00 Z%s", fmtF2(z).c_str());
     } else {
-        std::snprintf(buf, sizeof(buf), "N%04d M05", m_lineCounter);
+        std::snprintf(buf, sizeof(buf), "M05");
     }
     appendLine(buf);
 }
 
 void GCodeEngine::idleXY(double x, double y) {
     char buf[64];
-    m_lineCounter += m_lineJump;
-    std::snprintf(buf, sizeof(buf), "N%04d G00 X%s Y%s", m_lineCounter, fmtF3(x).c_str(), fmtF3(y).c_str());
+    std::snprintf(buf, sizeof(buf), "G00 X%s Y%s", fmtF3(x).c_str(), fmtF3(y).c_str());
     appendLine(buf);
 }
 

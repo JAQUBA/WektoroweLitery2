@@ -14,6 +14,7 @@
 #include <Util/ConfigManager.h>
 #include <Util/StringUtils.h>
 #include <vector>
+#include <algorithm>
 
 // ============================================================================
 // Global variable definitions
@@ -29,11 +30,29 @@ Document*      currentDocument = nullptr;
 std::string    csvDirectory  = "";
 std::string    lastInputFile = "";
 std::string    lastOutputFile = "";
+std::string    exportIdleDepth = "0,10";
+std::string    exportWorkDepth = "-0,10";
+std::string    exportCutDepth = "-1,45";
 bool           gridVisible   = true;
 
 static bool fileExists(const std::string& path) {
     DWORD attrs = GetFileAttributesA(path.c_str());
     return attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+static bool tryParseDouble(const std::string& src, double& out) {
+    std::string tmp = src;
+    tmp.erase(std::remove_if(tmp.begin(), tmp.end(), [](unsigned char c) {
+        return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+    }), tmp.end());
+    std::replace(tmp.begin(), tmp.end(), ',', '.');
+    if (tmp.empty()) return false;
+    try {
+        out = std::stod(tmp);
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 static std::string getFontsDirectory() {
@@ -86,12 +105,18 @@ void loadSettings() {
     csvDirectory  = getFontsDirectory();
     lastInputFile = config.getValue("last_input_file", "");
     lastOutputFile = config.getValue("last_output_file", "");
+    exportIdleDepth = config.getValue("export_idle_depth", "0,10");
+    exportWorkDepth = config.getValue("export_work_depth", "-0,10");
+    exportCutDepth = config.getValue("export_cut_depth", "-1,45");
     gridVisible   = config.getValue("grid_visible", "1") == "1";
 }
 
 void saveSettings() {
     config.setValue("last_input_file", lastInputFile);
     config.setValue("last_output_file", lastOutputFile);
+    config.setValue("export_idle_depth", exportIdleDepth);
+    config.setValue("export_work_depth", exportWorkDepth);
+    config.setValue("export_cut_depth", exportCutDepth);
     config.setValue("grid_visible", gridVisible ? "1" : "0");
 }
 
@@ -147,8 +172,21 @@ void doExportGCode() {
         return;
     }
 
+    double idleDepth = 0.0, workDepth = 0.0, cutDepth = 0.0;
+    if (!tryParseDouble(exportIdleDepth, idleDepth) ||
+        !tryParseDouble(exportWorkDepth, workDepth) ||
+        !tryParseDouble(exportCutDepth, cutDepth)) {
+        logMsg(L"Invalid depth values. Use numeric values (e.g. 0,10 / -0,10 / -1,45)");
+        return;
+    }
+
+    Document exportDoc = *currentDocument;
+    exportDoc.idleDepth_mm = idleDepth;
+    exportDoc.workingDepth_mm = workDepth;
+    exportDoc.cuttingDepth_mm = cutDepth;
+
     GCodeEngine gce;
-    gce.exportDocument(lastOutputFile, *currentDocument);
+    gce.exportDocument(lastOutputFile, exportDoc);
 
     std::wstring msg = L"G-Code exported to: " + std::wstring(lastOutputFile.begin(), lastOutputFile.end());
     logMsg(msg);

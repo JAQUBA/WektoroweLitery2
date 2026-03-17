@@ -7,11 +7,14 @@ Port of the original C# WPF application [WektoroweLitery](../WektoroweLitery/) t
 ## Features
 
 - Reads layout definition files (.TXT) with semicolon-separated commands
-- Parses vector letter data from CSV files (one file per character)
+- Parses vector letter data from CSV files (one file per Unicode character)
 - Computes tool envelope offsets for CNC milling compensation
 - Real-time GDI preview with zoom/pan navigation
-- Exports G-Code (.NC) files for CNC milling and laser engraving
-- Dark themed UI (Catppuccin Mocha)
+- Exports G-Code (`.gcode`) files for CNC milling and laser engraving
+- G-Code output without `Nxxxx` line numbering
+- G-Code prolog includes `G90`, `F1000`, `G21`
+- Decimal separator in output G-Code is `.`
+- Built-in dark theme (Tokyo Night)
 - Configurable settings saved to INI file
 
 ## Build
@@ -29,10 +32,14 @@ Dependencies are fetched automatically:
 
 ## Usage
 
-1. Set the CSV directory containing vector letter files (named by ASCII code, e.g. `65.csv` for 'A')
-2. Open a layout file (.TXT) via File → Run document
-3. Preview the result in the canvas (scroll to zoom, drag to pan)
-4. Export G-Code via File → Export G-Code
+1. Place glyph CSV files in `resources/fonts/` (already included in this repository).
+2. Open a layout file (`.TXT`) with the Input file picker.
+3. Click `Run` to parse and preview the layout (scroll to zoom, drag to pan, double-click to reset view).
+4. Set export depth parameters in UI:
+	- `Idle Z` (rapid travel height)
+	- `Work Z` (text engraving depth)
+	- `Cut Z` (frame cutting depth)
+5. Choose output `.gcode` file and click `Export GCode`.
 
 ## Layout File Format
 
@@ -43,6 +50,42 @@ Semicolon-separated commands:
 - `t;W;H;dx;dy;?;textH;condensation;thickness;text` — text nameplate
 - `tw;W;H;dx;dy;?;textH;condensation;thickness;text` — nameplate with frame
 - `w;W;H` — frame only
+
+## Glyph CSV Files
+
+- Location: `resources/fonts/`
+- File naming: Unicode code point (e.g. `65.csv` = `A`, `321.csv` = `Ł`, `46.csv` = `.`)
+- Each CSV line stores vector points in format:
+	- `x;y`
+	- `x;y;options` where options can contain flags (`h`, `z`, `k`)
+
+## Exported G-Code Format
+
+- File extension: `.gcode`
+- No `Nxxxx` line numbering
+- Prolog:
+	- `G90`
+	- `F1000`
+	- `G21`
+- Epilog ends with `M30`
+
+Example:
+
+```gcode
+G90
+F1000
+G21
+G00 Z0.20
+G00 X0.000 Y0.000
+...
+M30
+```
+
+## Notes
+
+- The application expects glyph CSV files to be available in `resources/fonts/`.
+- If glyph files are missing, preview/export for those characters can be incomplete.
+- Export depth values entered in UI are used at export time (they can override values from input TXT).
 
 ## License
 

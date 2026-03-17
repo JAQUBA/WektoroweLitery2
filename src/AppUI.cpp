@@ -98,7 +98,7 @@ void createUI(SimpleWindow* win) {
         [](Button*) { doRunDocument(); }),
         CLR_ACTION_BG, CLR_ACTION_TEXT, CLR_ACTION_HOVER);
 
-    styleBtn(win, new Button(m + 590, y, 90, 26, "Export NC",
+    styleBtn(win, new Button(m + 590, y, 90, 26, "Export GCode",
         [](Button*) { doExportGCode(); }),
         CLR_EXPORT_BG, CLR_EXPORT_TEXT, CLR_EXPORT_HOVER);
 
@@ -128,14 +128,62 @@ void createUI(SimpleWindow* win) {
     styleBtn(win, new Button(m + 750, y, 30, 26, "...",
         [outputField](Button*) {
             std::string path = saveFileDialog(window->getHandle(),
-                L"G-Code files (*.nc)\0*.nc\0All files (*.*)\0*.*\0",
-                L"Select output G-Code file", L"nc");
+                L"G-Code files (*.gcode)\0*.gcode\0All files (*.*)\0*.*\0",
+                L"Select output G-Code file", L"gcode");
             if (!path.empty()) {
                 lastOutputFile = path;
                 outputField->setText(path.c_str());
             }
         }),
         CLR_TOOL_BG, CLR_TOOL_TEXT, CLR_TOOL_HOVER);
+
+    y += 30;
+
+    // --- Export depth parameters ---
+    auto* lblIdle = new Label(m, y + 3, 65, 20, L"Idle Z:");
+    win->add(lblIdle);
+    lblIdle->setFont(L"Segoe UI", 10, false);
+    lblIdle->setTextColor(CLR_LABEL_TEXT);
+    lblIdle->setBackColor(CLR_WIN_BG);
+
+    auto* idleField = new InputField(m + 65, y, 80, 24, exportIdleDepth.c_str(),
+        [](InputField*, const char* text) {
+            exportIdleDepth = text;
+        });
+    idleField->setMaxLength(32);
+    win->add(idleField);
+
+    auto* lblWork = new Label(m + 170, y + 3, 65, 20, L"Work Z:");
+    win->add(lblWork);
+    lblWork->setFont(L"Segoe UI", 10, false);
+    lblWork->setTextColor(CLR_LABEL_TEXT);
+    lblWork->setBackColor(CLR_WIN_BG);
+
+    auto* workField = new InputField(m + 235, y, 80, 24, exportWorkDepth.c_str(),
+        [](InputField*, const char* text) {
+            exportWorkDepth = text;
+        });
+    workField->setMaxLength(32);
+    win->add(workField);
+
+    auto* lblCut = new Label(m + 340, y + 3, 65, 20, L"Cut Z:");
+    win->add(lblCut);
+    lblCut->setFont(L"Segoe UI", 10, false);
+    lblCut->setTextColor(CLR_LABEL_TEXT);
+    lblCut->setBackColor(CLR_WIN_BG);
+
+    auto* cutField = new InputField(m + 405, y, 80, 24, exportCutDepth.c_str(),
+        [](InputField*, const char* text) {
+            exportCutDepth = text;
+        });
+    cutField->setMaxLength(32);
+    win->add(cutField);
+
+    auto* lblDepthHint = new Label(m + 510, y + 3, 330, 20, L"Used only for G-Code export");
+    win->add(lblDepthHint);
+    lblDepthHint->setFont(L"Segoe UI", 10, false);
+    lblDepthHint->setTextColor(CLR_INFO_TEXT);
+    lblDepthHint->setBackColor(CLR_WIN_BG);
 
     y += 30;
 

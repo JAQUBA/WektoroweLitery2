@@ -2,7 +2,7 @@
 
 ## Project Description
 
-Native Windows desktop application (C++) for generating vector font nameplates for CNC milling and laser engraving. Reads layout definition files (.TXT), parses vector letter data from CSV files, computes tool envelope offsets, renders a real-time GDI preview, and exports G-Code (.NC) files. Port of the original C# WPF application "WektoroweLitery" to C++17 using JQB_WindowsLib.
+Native Windows desktop application (C++) for generating vector font nameplates for CNC milling and laser engraving. Reads layout definition files (.TXT), parses vector letter data from CSV files, computes tool envelope offsets, renders a real-time GDI preview, and exports G-Code (.gcode) files. Port of the original C# WPF application "WektoroweLitery" to C++17 using JQB_WindowsLib.
 
 ## Architecture
 
@@ -25,7 +25,8 @@ WektoroweLitery2/
 ├── resources/
 │   ├── app.manifest            # Windows Common Controls v6 manifest
 │   ├── resources.rc            # Windows resource file (icon + manifest + version)
-│   └── icon.ico                # Application icon
+│   ├── icon.ico                # Application icon
+│   └── fonts/                  # Glyph CSV files (Unicode codepoint filenames)
 └── platformio.ini              # PlatformIO config (platform: native via JQB_MinGW)
 ```
 
@@ -44,7 +45,7 @@ WektoroweLitery2/
 | **TableRow** | Row of Nameplates |
 | **Nameplate** | Text layout engine: loads letter CSVs, positions, centers within frame, generates toolpaths |
 | **DocumentParser** | Parses semicolon-separated layout files into Document model |
-| **GCodeEngine** | Generates numbered G-Code (G00/G01/M03/M05/M30) with laser/milling mode support |
+| **GCodeEngine** | Generates G-Code (G00/G01/M03/M05/M30) without line numbering, with milling/laser mode support |
 
 ## Tech Stack
 
@@ -76,7 +77,7 @@ WektoroweLitery2/
 
 ### Dark Theme
 
-Uses Catppuccin Mocha base from JQB_WindowsLib, extended with app-specific colors in `theme.h`.
+Uses Tokyo Night base from JQB_WindowsLib, extended with app-specific colors in `theme.h`.
 
 ### Menu Bar
 
@@ -98,7 +99,7 @@ Semicolon-separated commands:
 
 ### CSV Letter Format
 
-Each letter is a semicolon-separated CSV file (e.g., `65.csv` for 'A'):
+Each letter is a semicolon-separated CSV file in `resources/fonts/` (e.g., `65.csv` for 'A', `321.csv` for 'Ł'):
 - `x;y` — point coordinates
 - `x;y;options` — point with flags: `h` = serif, `z` = terminator, `k` = new segment
 
@@ -114,21 +115,25 @@ Each letter is a semicolon-separated CSV file (e.g., `65.csv` for 'A'):
 
 ### G-Code Format
 
-Numbered lines (`N0005`, `N0010`, ...) with:
+Plain lines (no `Nxxxx` numbering) with:
 - `G90` — absolute positioning
+- `F1000` — feed rate command inserted after `G90`
 - `G21` — millimeter units
 - `G00` — rapid move (idle)
 - `G01` — linear interpolation (working)
 - `M03` / `M05` — laser on/off (laser mode)
 - `M30` — program end
+- Decimal separator in output is `.`
 
 ### Configuration (wektorowe_litery.ini)
 
 | Key | Description | Default |
 |-----|-------------|---------|
-| `csv_directory` | Path to CSV letter files | (empty) |
 | `last_input_file` | Last opened layout file | (empty) |
 | `last_output_file` | Last G-Code output path | (empty) |
+| `export_idle_depth` | Export rapid travel depth (Idle Z) | `0,10` |
+| `export_work_depth` | Export text engraving depth (Work Z) | `-0,10` |
+| `export_cut_depth` | Export frame cutting depth (Cut Z) | `-1,45` |
 | `grid_visible` | Show grid in canvas | `1` |
 | `logwin_x/y/w/h` | Log window position/size | (auto) |
 
@@ -148,10 +153,14 @@ Add via `menuBar->addMenu()` / `m.addItem()` in `MenuHandler.cpp`. Shared action
 Add drawing methods to `CanvasWindow.cpp`. Use double-buffered GDI. World coordinates are in mm; use `toScreenX()`/`toScreenY()` for transforms.
 
 ### Adding New Letter Formats
-Extend `VectorLetterEngine::importFromCSV()` in `TrocheWektorow.cpp`.
+Extend `VectorLetterEngine::importFromCSV()` in `VectorLetterEngine.cpp`.
 
 ### Extending G-Code Output
-Add methods to `GCodeEngine`. Format: `N{line:04d} {command}`.
+Add methods to `GCodeEngine`. Keep plain commands without `N` line numbering.
+
+### Font Files Path
+- Glyph CSV files are loaded from `resources/fonts/` resolved relative to executable location.
+- Do not reintroduce manual folder selection in UI unless explicitly requested.
 
 ### SimpleWindow is a Singleton
 Do not create a second one. For additional windows use `OverlayWindow` or raw WinAPI with `GWLP_USERDATA` (see `CanvasWindow`).

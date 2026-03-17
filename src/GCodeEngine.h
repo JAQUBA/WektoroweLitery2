@@ -23,8 +23,6 @@ public:
                            double width = 50.0, double height = 20.0);
 
 private:
-    int m_lineCounter = 0;
-    int m_lineJump = 5;
     std::ostringstream m_buffer;
     bool m_laserMode = false;
 
