@@ -36,6 +36,8 @@ extern Document*       currentDocument;
 // ============================================================================
 extern std::string     lastInputFile;
 extern std::string     lastOutputFile;
+extern std::string     lastInputDir;
+extern std::string     lastOutputDir;
 extern std::string     exportDiameter;
 extern std::string     exportStepover;
 extern std::string     exportMaterialThickness;

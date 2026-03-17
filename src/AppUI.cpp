@@ -23,8 +23,17 @@ static void styleBtn(SimpleWindow* win, Button* btn,
 }
 
 // --- File dialog helpers ---
-static std::string openFileDialog(HWND owner, const wchar_t* filter, const wchar_t* title) {
+static std::string extractDir(const std::string& filePath) {
+    size_t pos = filePath.find_last_of("\\/");
+    if (pos != std::string::npos)
+        return filePath.substr(0, pos);
+    return "";
+}
+
+static std::string openFileDialog(HWND owner, const wchar_t* filter, const wchar_t* title,
+                                   const std::string& initialDir) {
     wchar_t filePath[MAX_PATH] = {};
+    std::wstring wInitDir = StringUtils::utf8ToWide(initialDir);
     OPENFILENAMEW ofn = {};
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = owner;
@@ -33,14 +42,17 @@ static std::string openFileDialog(HWND owner, const wchar_t* filter, const wchar
     ofn.nMaxFile = MAX_PATH;
     ofn.lpstrTitle = title;
     ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    if (!wInitDir.empty())
+        ofn.lpstrInitialDir = wInitDir.c_str();
     if (GetOpenFileNameW(&ofn))
         return StringUtils::wideToUtf8(filePath);
     return "";
 }
 
 static std::string saveFileDialog(HWND owner, const wchar_t* filter, const wchar_t* title,
-                                   const wchar_t* defaultExt) {
+                                   const wchar_t* defaultExt, const std::string& initialDir) {
     wchar_t filePath[MAX_PATH] = {};
+    std::wstring wInitDir = StringUtils::utf8ToWide(initialDir);
     OPENFILENAMEW ofn = {};
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = owner;
@@ -50,6 +62,8 @@ static std::string saveFileDialog(HWND owner, const wchar_t* filter, const wchar
     ofn.lpstrTitle = title;
     ofn.lpstrDefExt = defaultExt;
     ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+    if (!wInitDir.empty())
+        ofn.lpstrInitialDir = wInitDir.c_str();
     if (GetSaveFileNameW(&ofn))
         return StringUtils::wideToUtf8(filePath);
     return "";
@@ -86,9 +100,10 @@ void createUI(SimpleWindow* win) {
         [inputField](Button*) {
             std::string path = openFileDialog(window->getHandle(),
                 L"Layout files (*.txt)\0*.txt\0All files (*.*)\0*.*\0",
-                L"Select layout file");
+                L"Select layout file", lastInputDir);
             if (!path.empty()) {
                 lastInputFile = path;
+                lastInputDir = extractDir(path);
                 inputField->setText(path.c_str());
             }
         }),
@@ -129,9 +144,10 @@ void createUI(SimpleWindow* win) {
         [outputField](Button*) {
             std::string path = saveFileDialog(window->getHandle(),
                 L"G-Code files (*.gcode)\0*.gcode\0All files (*.*)\0*.*\0",
-                L"Select output G-Code file", L"gcode");
+                L"Select output G-Code file", L"gcode", lastOutputDir);
             if (!path.empty()) {
                 lastOutputFile = path;
+                lastOutputDir = extractDir(path);
                 outputField->setText(path.c_str());
             }
         }),

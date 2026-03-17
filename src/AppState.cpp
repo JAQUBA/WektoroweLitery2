@@ -30,6 +30,8 @@ Document*      currentDocument = nullptr;
 std::string    csvDirectory  = "";
 std::string    lastInputFile = "";
 std::string    lastOutputFile = "";
+std::string    lastInputDir  = "";
+std::string    lastOutputDir = "";
 std::string    exportDiameter = "0,30";
 std::string    exportStepover = "0,15";
 std::string    exportMaterialThickness = "1,50";
@@ -107,6 +109,8 @@ void loadSettings() {
     csvDirectory  = getFontsDirectory();
     lastInputFile = config.getValue("last_input_file", "");
     lastOutputFile = config.getValue("last_output_file", "");
+    lastInputDir  = config.getValue("last_input_dir", "");
+    lastOutputDir = config.getValue("last_output_dir", "");
     exportDiameter = config.getValue("export_diameter", "0,30");
     exportStepover = config.getValue("export_stepover", "0,15");
     exportMaterialThickness = config.getValue("export_material_thickness", "1,50");
@@ -118,6 +122,8 @@ void loadSettings() {
 void saveSettings() {
     config.setValue("last_input_file", lastInputFile);
     config.setValue("last_output_file", lastOutputFile);
+    config.setValue("last_input_dir", lastInputDir);
+    config.setValue("last_output_dir", lastOutputDir);
     config.setValue("export_diameter", exportDiameter);
     config.setValue("export_stepover", exportStepover);
     config.setValue("export_material_thickness", exportMaterialThickness);
