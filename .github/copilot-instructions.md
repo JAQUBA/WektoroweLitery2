@@ -133,6 +133,8 @@ Plain lines (no `Nxxxx` numbering) with:
 |-----|-------------|---------|
 | `last_input_file` | Last opened layout file | (empty) |
 | `last_output_file` | Last G-Code output path | (empty) |
+| `export_diameter` | Tool diameter [mm] | `0,30` |
+| `export_stepover` | Tool stepover [mm] | `0,15` |
 | `export_material_thickness` | Material thickness [mm] | `1,50` |
 | `export_text_depth` | Text engraving depth [mm] | `0,20` |
 | `export_safe_height` | Safe travel height [mm] | `5,00` |
