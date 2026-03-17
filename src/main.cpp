@@ -14,6 +14,8 @@
 #include "theme.h"
 
 #include <UI/LogWindow/LogWindow.h>
+#include <Util/StringUtils.h>
+#include <fstream>
 
 // ============================================================================
 // Canvas window (global — accessed from AppState and AppUI)
@@ -26,8 +28,8 @@ VectorCanvas* canvas = nullptr;
 void setup() {
     loadSettings();
 
-    // --- Main window ---
-    window = new SimpleWindow(900, 650, "Vector Letters 2", 101);
+    // --- Main window (wider for side-by-side editor + canvas) ---
+    window = new SimpleWindow(1200, 700, "Vector Letters 2", 101);
     window->init();
     window->setBackgroundColor(CLR_WIN_BG);
     window->setTextColor(CLR_TEXT);
@@ -35,15 +37,27 @@ void setup() {
     // --- Menu bar ---
     createAppMenu(window);
 
-    // --- UI components (toolbar) ---
+    // --- UI components (toolbar + editor) ---
     createUI(window);
 
-    // --- Canvas (custom GDI child window) ---
+    // --- Canvas (right side of editor, y=64 to match editor row) ---
     canvas = new VectorCanvas();
-    canvas->create(window->getHandle(), 10, 170, 880, 440);
+    canvas->create(window->getHandle(), 365, 64, 810, 525);
     canvas->setBackgroundColor(CLR_CANVAS_BG);
     canvas->setGridColor(CLR_GRID_LINE);
     canvas->setGridVisible(gridVisible);
+
+    // --- Load last file into editor ---
+    if (!currentFilePath.empty()) {
+        std::ifstream f(currentFilePath, std::ios::binary);
+        if (f.is_open()) {
+            std::string content((std::istreambuf_iterator<char>(f)),
+                                 std::istreambuf_iterator<char>());
+            f.close();
+            setEditorText(content);
+        }
+    }
+    updateWindowTitle();
 
     // --- Save settings on close ---
     window->onClose([]() {

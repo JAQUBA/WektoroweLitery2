@@ -40,4 +40,8 @@
 /* Label text */
 #define CLR_LABEL_TEXT      CLR_TEXT
 
+/* Editor (layout file inline editor) */
+#define CLR_EDITOR_BG       CLR_BG
+#define CLR_EDITOR_TEXT     CLR_TEXT
+
 #endif /* THEME_H */

@@ -16,6 +16,11 @@ void createAppMenu(SimpleWindow* win) {
 
     // --- File ---
     menuBar->addMenu(L"File", [](PopupMenu& m) {
+        m.addItem(L"New", []() { doNewFile(); });
+        m.addItem(L"Open...", []() { doOpenFile(); });
+        m.addItem(L"Save", []() { doSaveFile(); });
+        m.addItem(L"Save As...", []() { doSaveFileAs(); });
+        m.addSeparator();
         m.addItem(L"Run document", []() { doRunDocument(); });
         m.addItem(L"Export G-Code", []() { doExportGCode(); });
         m.addSeparator();

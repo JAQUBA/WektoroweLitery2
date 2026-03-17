@@ -10,11 +10,16 @@
 class DocumentParser {
 public:
     // Parse a layout file (semicolon-separated) into a Document.
-    // diameter/stepover override any values from the f-line in the file.
     static Document parseFile(const std::string& fileName,
                               const std::string& csvDir,
                               double diameter = 0.0,
                               double stepover = 0.0);
+
+    // Parse layout content from a string (same format as file).
+    static Document parseString(const std::string& content,
+                                const std::string& csvDir,
+                                double diameter = 0.0,
+                                double stepover = 0.0);
 };
 
 #endif // DOCUMENT_PARSER_H

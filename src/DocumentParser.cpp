@@ -54,10 +54,11 @@ static void stripUtf8BOM(std::string& s) {
     }
 }
 
-Document DocumentParser::parseFile(const std::string& fileName,
-                                    const std::string& csvDir,
-                                    double diameter,
-                                    double stepover) {
+// --- Shared parsing logic (works on any std::istream) ---
+static Document parseStreamImpl(std::istream& input,
+                                const std::string& csvDir,
+                                double diameter,
+                                double stepover) {
     Document doc;
     doc.millingDiameter_mm = diameter;
     doc.stepover_mm = stepover;
@@ -72,12 +73,9 @@ Document DocumentParser::parseFile(const std::string& fileName,
 
     const char separator = ';';
 
-    std::ifstream file(fileName);
-    if (!file.is_open()) return doc;
-
     std::string line;
     bool firstLine = true;
-    while (std::getline(file, line)) {
+    while (std::getline(input, line)) {
         if (firstLine) {
             stripUtf8BOM(line);
             firstLine = false;
@@ -157,5 +155,30 @@ Document DocumentParser::parseFile(const std::string& fileName,
         }
     }
 
+    // Flush last row if it has any nameplates (fixes missing final row
+    // when the file does not end with an 'L;' command).
+    if (!currentRow.getNameplates().empty()) {
+        doc.addRow(currentRow);
+    }
+
     return doc;
+}
+
+// --- Public API ---
+
+Document DocumentParser::parseFile(const std::string& fileName,
+                                    const std::string& csvDir,
+                                    double diameter,
+                                    double stepover) {
+    std::ifstream file(fileName);
+    if (!file.is_open()) return Document();
+    return parseStreamImpl(file, csvDir, diameter, stepover);
+}
+
+Document DocumentParser::parseString(const std::string& content,
+                                      const std::string& csvDir,
+                                      double diameter,
+                                      double stepover) {
+    std::istringstream stream(content);
+    return parseStreamImpl(stream, csvDir, diameter, stepover);
 }

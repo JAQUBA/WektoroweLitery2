@@ -13,8 +13,10 @@
 #include <UI/LogWindow/LogWindow.h>
 #include <Util/ConfigManager.h>
 #include <Util/StringUtils.h>
+#include <commdlg.h>
 #include <vector>
 #include <algorithm>
+#include <fstream>
 
 // ============================================================================
 // Global variable definitions
@@ -23,14 +25,15 @@ SimpleWindow*  window       = nullptr;
 Label*         lblStatus    = nullptr;
 Label*         lblInfo      = nullptr;
 LogWindow*     logWindow    = nullptr;
+HWND           hEditor      = nullptr;
 
 ConfigManager  config("config.ini");
 Document*      currentDocument = nullptr;
 
 std::string    csvDirectory  = "";
-std::string    lastInputFile = "";
-std::string    lastOutputFile = "";
+std::string    currentFilePath = "";
 std::string    lastInputDir  = "";
+std::string    lastOutputFile = "";
 std::string    lastOutputDir = "";
 std::string    exportDiameter = "0,30";
 std::string    exportStepover = "0,15";
@@ -107,9 +110,9 @@ void logMsg(const std::wstring& msg) {
 // ============================================================================
 void loadSettings() {
     csvDirectory  = getFontsDirectory();
-    lastInputFile = config.getValue("last_input_file", "");
-    lastOutputFile = config.getValue("last_output_file", "");
+    currentFilePath = config.getValue("last_input_file", "");
     lastInputDir  = config.getValue("last_input_dir", "");
+    lastOutputFile = config.getValue("last_output_file", "");
     lastOutputDir = config.getValue("last_output_dir", "");
     exportDiameter = config.getValue("export_diameter", "0,30");
     exportStepover = config.getValue("export_stepover", "0,15");
@@ -120,9 +123,9 @@ void loadSettings() {
 }
 
 void saveSettings() {
-    config.setValue("last_input_file", lastInputFile);
-    config.setValue("last_output_file", lastOutputFile);
+    config.setValue("last_input_file", currentFilePath);
     config.setValue("last_input_dir", lastInputDir);
+    config.setValue("last_output_file", lastOutputFile);
     config.setValue("last_output_dir", lastOutputDir);
     config.setValue("export_diameter", exportDiameter);
     config.setValue("export_stepover", exportStepover);
@@ -133,11 +136,150 @@ void saveSettings() {
 }
 
 // ============================================================================
+// File dialog helpers
+// ============================================================================
+std::string extractDir(const std::string& filePath) {
+    size_t pos = filePath.find_last_of("\\/");
+    if (pos != std::string::npos)
+        return filePath.substr(0, pos);
+    return "";
+}
+
+std::string openFileDialog(HWND owner, const wchar_t* filter, const wchar_t* title,
+                            const std::string& initialDir) {
+    wchar_t filePath[MAX_PATH] = {};
+    std::wstring wInitDir = StringUtils::utf8ToWide(initialDir);
+    OPENFILENAMEW ofn = {};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = owner;
+    ofn.lpstrFilter = filter;
+    ofn.lpstrFile = filePath;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrTitle = title;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    if (!wInitDir.empty())
+        ofn.lpstrInitialDir = wInitDir.c_str();
+    if (GetOpenFileNameW(&ofn))
+        return StringUtils::wideToUtf8(filePath);
+    return "";
+}
+
+std::string saveFileDialog(HWND owner, const wchar_t* filter, const wchar_t* title,
+                            const wchar_t* defaultExt, const std::string& initialDir) {
+    wchar_t filePath[MAX_PATH] = {};
+    std::wstring wInitDir = StringUtils::utf8ToWide(initialDir);
+    OPENFILENAMEW ofn = {};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = owner;
+    ofn.lpstrFilter = filter;
+    ofn.lpstrFile = filePath;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrTitle = title;
+    ofn.lpstrDefExt = defaultExt;
+    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+    if (!wInitDir.empty())
+        ofn.lpstrInitialDir = wInitDir.c_str();
+    if (GetSaveFileNameW(&ofn))
+        return StringUtils::wideToUtf8(filePath);
+    return "";
+}
+
+// ============================================================================
+// Editor helpers
+// ============================================================================
+std::string getEditorText() {
+    if (!hEditor) return "";
+    int len = GetWindowTextLengthW(hEditor);
+    if (len <= 0) return "";
+    std::wstring buf(len + 1, L'\0');
+    GetWindowTextW(hEditor, &buf[0], len + 1);
+    buf.resize(len);
+    return StringUtils::wideToUtf8(buf);
+}
+
+void setEditorText(const std::string& text) {
+    if (!hEditor) return;
+    std::wstring wText = StringUtils::utf8ToWide(text);
+    SetWindowTextW(hEditor, wText.c_str());
+}
+
+void updateWindowTitle() {
+    std::wstring title = L"Vector Letters 2";
+    if (!currentFilePath.empty()) {
+        size_t pos = currentFilePath.find_last_of("\\/");
+        std::string fname = (pos != std::string::npos)
+            ? currentFilePath.substr(pos + 1) : currentFilePath;
+        title = StringUtils::utf8ToWide(fname) + L" \u2014 " + title;
+    } else {
+        title = L"Untitled \u2014 " + title;
+    }
+    if (window) SetWindowTextW(window->getHandle(), title.c_str());
+}
+
+// ============================================================================
 // Shared actions
 // ============================================================================
+void doNewFile() {
+    setEditorText("");
+    currentFilePath = "";
+    updateWindowTitle();
+    logMsg(L"New document");
+}
+
+void doOpenFile() {
+    std::string path = openFileDialog(window->getHandle(),
+        L"Layout files (*.txt)\0*.txt\0All files (*.*)\0*.*\0",
+        L"Open layout file", lastInputDir);
+    if (path.empty()) return;
+
+    std::ifstream f(path, std::ios::binary);
+    if (!f.is_open()) {
+        logMsg(L"Cannot open file");
+        return;
+    }
+    std::string content((std::istreambuf_iterator<char>(f)),
+                         std::istreambuf_iterator<char>());
+    f.close();
+
+    setEditorText(content);
+    currentFilePath = path;
+    lastInputDir = extractDir(path);
+    updateWindowTitle();
+    logMsg(L"Opened: " + StringUtils::utf8ToWide(path));
+}
+
+void doSaveFile() {
+    if (currentFilePath.empty()) {
+        doSaveFileAs();
+        return;
+    }
+    std::string content = getEditorText();
+    std::ofstream f(currentFilePath, std::ios::binary);
+    if (!f.is_open()) {
+        logMsg(L"Cannot write file");
+        return;
+    }
+    f.write(content.data(), content.size());
+    f.close();
+    logMsg(L"Saved: " + StringUtils::utf8ToWide(currentFilePath));
+}
+
+void doSaveFileAs() {
+    std::string path = saveFileDialog(window->getHandle(),
+        L"Layout files (*.txt)\0*.txt\0All files (*.*)\0*.*\0",
+        L"Save layout file as", L"txt", lastInputDir);
+    if (path.empty()) return;
+
+    currentFilePath = path;
+    lastInputDir = extractDir(path);
+    doSaveFile();
+    updateWindowTitle();
+}
+
 void doRunDocument() {
-    if (lastInputFile.empty()) {
-        logMsg(L"No input file selected");
+    std::string content = getEditorText();
+    if (content.empty()) {
+        logMsg(L"Editor is empty");
         return;
     }
     if (csvDirectory.empty()) {
@@ -146,14 +288,13 @@ void doRunDocument() {
     }
 
     if (!fileExists(csvDirectory + "65.csv")) {
-        std::wstring msg = L"Font CSV files not found in: " + std::wstring(csvDirectory.begin(), csvDirectory.end());
+        std::wstring msg = L"Font CSV files not found in: " + StringUtils::utf8ToWide(csvDirectory);
         logMsg(msg);
         return;
     }
 
     logMsg(L"Parsing document...");
 
-    // Parse UI tool parameters
     double diam = 0.0, step = 0.0;
     if (!tryParseDouble(exportDiameter, diam) ||
         !tryParseDouble(exportStepover, step) ||
@@ -167,7 +308,7 @@ void doRunDocument() {
         currentDocument = nullptr;
     }
 
-    Document doc = DocumentParser::parseFile(lastInputFile, csvDirectory, diam, step);
+    Document doc = DocumentParser::parseString(content, csvDirectory, diam, step);
     currentDocument = new Document(doc);
 
     if (canvas) {
@@ -176,16 +317,19 @@ void doRunDocument() {
     }
 
     if (lblInfo) {
-        std::wstring info = L"Loaded: " + std::wstring(lastInputFile.begin(), lastInputFile.end());
-        lblInfo->setText(info.c_str());
+        int rowCount = (int)currentDocument->getRows().size();
+        wchar_t info[128];
+        _snwprintf(info, 128, L"Parsed: %d rows", rowCount);
+        lblInfo->setText(info);
     }
 
     logMsg(L"Document parsed and rendered");
 }
 
 void doExportGCode() {
-    if (lastInputFile.empty()) {
-        logMsg(L"No input file selected");
+    std::string content = getEditorText();
+    if (content.empty()) {
+        logMsg(L"Editor is empty");
         return;
     }
     if (lastOutputFile.empty()) {
@@ -198,7 +342,7 @@ void doExportGCode() {
     }
 
     if (!fileExists(csvDirectory + "65.csv")) {
-        std::wstring msg = L"Font CSV files not found in: " + std::wstring(csvDirectory.begin(), csvDirectory.end());
+        std::wstring msg = L"Font CSV files not found in: " + StringUtils::utf8ToWide(csvDirectory);
         logMsg(msg);
         return;
     }
@@ -228,8 +372,7 @@ void doExportGCode() {
         return;
     }
 
-    // Reparse with current UI parameters so export always uses program config.
-    Document exportDoc = DocumentParser::parseFile(lastInputFile, csvDirectory, diam, step);
+    Document exportDoc = DocumentParser::parseString(content, csvDirectory, diam, step);
     if (exportDoc.getRows().empty()) {
         logMsg(L"Document parsing failed or returned no rows");
         return;
@@ -252,7 +395,7 @@ void doExportGCode() {
     GCodeEngine gce;
     gce.exportDocument(lastOutputFile, exportDoc);
 
-    std::wstring msg = L"G-Code exported to: " + std::wstring(lastOutputFile.begin(), lastOutputFile.end());
+    std::wstring msg = L"G-Code exported to: " + StringUtils::utf8ToWide(lastOutputFile);
     logMsg(msg);
 }
 
