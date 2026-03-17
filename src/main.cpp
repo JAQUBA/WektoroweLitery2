@@ -18,7 +18,7 @@
 // ============================================================================
 // Canvas window (global — accessed from AppState and AppUI)
 // ============================================================================
-CanvasWindow* canvas = nullptr;
+VectorCanvas* canvas = nullptr;
 
 // ============================================================================
 // setup() — Application initialization
@@ -39,8 +39,10 @@ void setup() {
     createUI(window);
 
     // --- Canvas (custom GDI child window) ---
-    canvas = new CanvasWindow();
+    canvas = new VectorCanvas();
     canvas->create(window->getHandle(), 10, 170, 880, 440);
+    canvas->setBackgroundColor(CLR_CANVAS_BG);
+    canvas->setGridColor(CLR_GRID_LINE);
     canvas->setGridVisible(gridVisible);
 
     // --- Save settings on close ---

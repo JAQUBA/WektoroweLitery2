@@ -2,8 +2,7 @@
 // DocumentParser.cpp — Layout file parser implementation
 //
 // File format (semicolon-separated lines):
-//   p;diameter;stepover                                   — laser mode params
-//   f;diameter;stepover;materialThickness;textDepth;safeHeight — milling mode params (all positive)
+//   # comment                                             — ignored line
 //   l                                                     — new row (line break)
 //   t;width;height;dx;dy;?;textH;cond;thick;text          — text-only plate
 //   tw;width;height;dx;dy;?;textH;cond;thick;text         — plate with frame
@@ -92,21 +91,6 @@ Document DocumentParser::parseFile(const std::string& fileName,
         std::string cmd = toLower(row[0]);
 
         switch (cmd[0]) {
-            case 'p': {
-                // Laser mode parameters
-                doc.laserMode = true;
-                // diameter and stepover come from UI — ignore file values
-                break;
-            }
-
-            case 'f': {
-                // Milling mode parameters — diameter and stepover come from UI
-                if (row.size() > 3) doc.materialThickness_mm = parseDouble(row[3]);
-                if (row.size() > 4) doc.textDepth_mm = parseDouble(row[4]);
-                if (row.size() > 5) doc.safeHeight_mm = parseDouble(row[5]);
-                break;
-            }
-
             case 'l': {
                 // New row
                 doc.addRow(currentRow);

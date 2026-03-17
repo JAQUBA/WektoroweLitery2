@@ -119,7 +119,7 @@ void createUI(SimpleWindow* win) {
 
     styleBtn(win, new Button(m + 690, y, 90, 26, "Reset View",
         [](Button*) {
-            extern CanvasWindow* canvas;
+            extern VectorCanvas* canvas;
             if (canvas) canvas->resetView();
         }),
         CLR_TOOL_BG, CLR_TOOL_TEXT, CLR_TOOL_HOVER);

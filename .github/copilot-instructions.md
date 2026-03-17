@@ -13,7 +13,7 @@ WektoroweLitery2/
 │   ├── AppState.h / .cpp       # Global state, variables, helpers (logMsg, loadSettings, doRunDocument)
 │   ├── AppUI.h / .cpp          # UI component creation (createUI) with dark theme
 │   ├── MenuHandler.h / .cpp    # Menu bar creation and command routing
-│   ├── CanvasWindow.h / .cpp   # Custom GDI canvas — zoomable/pannable vector rendering
+│   ├── CanvasWindow.h / .cpp   # VectorCanvas — subclass of library CanvasWindow for document rendering
 │   ├── VectorPoint.h           # VectorPoint struct — point with angles and options
 │   ├── VectorLetterEngine.h / .cpp # VectorLetterEngine — vector letter engine with tool envelope
 │   ├── Document.h              # Document model (collection of table rows)
@@ -38,7 +38,7 @@ WektoroweLitery2/
 | **AppState** | Global variable definitions, settings load/save (INI), shared actions (`doRunDocument()`, `doExportGCode()`, `doToggleLogWindow()`, `doToggleGrid()`) |
 | **AppUI** | `createUI(SimpleWindow*)` — creates toolbar with input fields and buttons |
 | **MenuHandler** | `createAppMenu()` — MenuBar with File, View, Help menus |
-| **CanvasWindow** | Custom WinAPI child window with double-buffered GDI rendering, mouse zoom/pan, grid overlay, document vector rendering |
+| **CanvasWindow** (VectorCanvas) | Subclass of JQB_WindowsLib CanvasWindow — renders documents, nameplates, and vector toolpaths on the canvas |
 | **VectorPoint** (VectorPoint.h) | Point struct with coordinates, angles (alphaPrimary, alphaMean), serif flag, terminator flag |
 | **VectorLetterEngine** (VectorLetterEngine.h/.cpp) | Core vector engine: CSV import, angle computation, envelope generation, toolpath calculation |
 | **Document** | Document-level parameters (materialThickness, textDepth, safeHeight, diameter, laser mode) + collection of TableRows |
@@ -52,7 +52,7 @@ WektoroweLitery2/
 - **Language**: C++17
 - **Build system**: PlatformIO (`platform = native` via JQB_MinGW)
 - **UI framework**: [JQB_WindowsLib](https://github.com/JAQUBA/JQB_WindowsLib) — lightweight Win32 UI library
-- **Rendering**: WinAPI GDI (double-buffered, custom canvas with zoom/pan)
+- **Rendering**: WinAPI GDI (via reusable CanvasWindow from JQB_WindowsLib — zoom/pan/grid inherited)
 - **Target platform**: Windows 10+ (x64)
 
 ## Coding Conventions
@@ -89,9 +89,7 @@ Help → About...
 
 ### Layout File Format (.TXT)
 
-Semicolon-separated commands:
-- `p;diameter;stepover` — laser mode parameters
-- `f;diameter;stepover;materialThickness;textDepth;safeHeight` — milling mode parameters (all positive values in mm)
+Semicolon-separated commands (lines starting with `#` are ignored as comments):
 - `l` — new row (line break)
 - `t;width;height;dx;dy;?;textH;condensation;thickness;text` — text-only nameplate
 - `tw;width;height;dx;dy;?;textH;condensation;thickness;text` — nameplate with frame
@@ -127,12 +125,14 @@ Plain lines (no `Nxxxx` numbering) with:
 - `M30` — program end
 - Decimal separator in output is `.`
 
-### Configuration (wektorowe_litery.ini)
+### Configuration (config.ini)
 
 | Key | Description | Default |
 |-----|-------------|---------|
 | `last_input_file` | Last opened layout file | (empty) |
 | `last_output_file` | Last G-Code output path | (empty) |
+| `last_input_dir` | Last input file directory | (empty) |
+| `last_output_dir` | Last output file directory | (empty) |
 | `export_diameter` | Tool diameter [mm] | `0,30` |
 | `export_stepover` | Tool stepover [mm] | `0,15` |
 | `export_material_thickness` | Material thickness [mm] | `1,50` |
@@ -154,7 +154,7 @@ Add via `menuBar->addMenu()` / `m.addItem()` in `MenuHandler.cpp`. Shared action
 2. Load in `loadSettings()`, save in `saveSettings()`
 
 ### Extending Canvas Rendering
-Add drawing methods to `CanvasWindow.cpp`. Use double-buffered GDI. World coordinates are in mm; use `toScreenX()`/`toScreenY()` for transforms.
+Add drawing methods to `VectorCanvas` in `CanvasWindow.cpp`. Base canvas features (zoom/pan/grid/double-buffer) are inherited from JQB_WindowsLib `CanvasWindow`. World coordinates are in mm; use `toScreenX()`/`toScreenY()` for transforms.
 
 ### Adding New Letter Formats
 Extend `VectorLetterEngine::importFromCSV()` in `VectorLetterEngine.cpp`.
@@ -167,7 +167,7 @@ Add methods to `GCodeEngine`. Keep plain commands without `N` line numbering.
 - Do not reintroduce manual folder selection in UI unless explicitly requested.
 
 ### SimpleWindow is a Singleton
-Do not create a second one. For additional windows use `OverlayWindow` or raw WinAPI with `GWLP_USERDATA` (see `CanvasWindow`).
+Do not create a second one. For additional windows use `OverlayWindow` or raw WinAPI with `GWLP_USERDATA`.
 
 ### Logging
 Use `logMsg(const wchar_t*)` or `logMsg(const std::wstring&)` from `AppState.h`. Logs displayed in `LogWindow`.

@@ -24,7 +24,7 @@ Label*         lblStatus    = nullptr;
 Label*         lblInfo      = nullptr;
 LogWindow*     logWindow    = nullptr;
 
-ConfigManager  config("wektorowe_litery.ini");
+ConfigManager  config("config.ini");
 Document*      currentDocument = nullptr;
 
 std::string    csvDirectory  = "";
@@ -88,7 +88,7 @@ static std::string getFontsDirectory() {
 }
 
 // External canvas (defined in main.cpp)
-extern CanvasWindow* canvas;
+extern VectorCanvas* canvas;
 
 // ============================================================================
 // Logging

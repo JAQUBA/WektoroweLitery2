@@ -1,10 +1,9 @@
 # Layout file format (semicolon-separated):
-# p;  diameter; stepover                                          — laser mode
-# f;  diameter; stepover; materialThickness; textDepth; safeHeight — milling mode (all positive, mm)
 # l                                                               — new row
 # t;  width; height; dx; dy; ?; textH; condensation; thickness; text  — text only
 # tw; width; height; dx; dy; ?; textH; condensation; thickness; text  — text + frame
 # w;  width; height                                               — frame only
+# Lines starting with # are ignored.
 
 tw; 100; 30; 0; 4; 5; 8; 100; 12;POMPA 1;
 tw; 100; 30; 0; 4; 5; 8; 100; 12;POMPA 2;

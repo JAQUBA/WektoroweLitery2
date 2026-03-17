@@ -9,7 +9,7 @@
 #include <UI/SimpleWindow/SimpleWindow.h>
 #include <UI/MenuBar/MenuBar.h>
 
-extern CanvasWindow* canvas;
+extern VectorCanvas* canvas;
 
 void createAppMenu(SimpleWindow* win) {
     MenuBar* menuBar = new MenuBar();

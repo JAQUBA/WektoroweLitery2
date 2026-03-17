@@ -45,9 +45,7 @@ Dependencies are fetched automatically:
 
 ## Layout File Format
 
-Semicolon-separated commands:
-- `p;diameter;stepover` — laser mode
-- `f;diameter;stepover;materialThickness;textDepth;safeHeight` — milling mode (all positive values in mm)
+Semicolon-separated commands (lines starting with `#` are ignored as comments):
 - `l` — new row
 - `t;W;H;dx;dy;?;textH;condensation;thickness;text` — text nameplate
 - `tw;W;H;dx;dy;?;textH;condensation;thickness;text` — nameplate with frame
@@ -93,7 +91,7 @@ M30
 
 - The application expects glyph CSV files to be available in `resources/fonts/`.
 - If glyph files are missing, preview/export for those characters can be incomplete.
-- Export parameters entered in UI are used at export time — they override values from input TXT file.
+- Export parameters entered in UI are used at export time.
 - All depth/height values are positive numbers. The engine computes correct Z signs automatically.
 
 ## License
