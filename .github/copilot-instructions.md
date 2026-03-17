@@ -91,8 +91,8 @@ Help → About...
 
 Semicolon-separated commands (lines starting with `#` are ignored as comments):
 - `l` — new row (line break)
-- `t;width;height;dx;dy;?;textH;condensation;thickness;text` — text-only nameplate
-- `tw;width;height;dx;dy;?;textH;condensation;thickness;text` — nameplate with frame
+- `t;width;height;dx;dy;textH;condensation;thickness;text` — text-only nameplate
+- `tw;width;height;dx;dy;textH;condensation;thickness;text` — nameplate with frame
 - `w;width;height` — frame-only element
 
 **Z coordinate convention:** Bottom of material = Z0.0 (lowest point). Surface = Z(materialThickness). Text engraving → Z = materialThickness − textDepth. Frame cutting → Z = 0.0. Rapid travel → Z = materialThickness + safeHeight.

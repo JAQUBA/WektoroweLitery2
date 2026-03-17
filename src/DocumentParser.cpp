@@ -4,8 +4,8 @@
 // File format (semicolon-separated lines):
 //   # comment                                             — ignored line
 //   l                                                     — new row (line break)
-//   t;width;height;dx;dy;?;textH;cond;thick;text          — text-only plate
-//   tw;width;height;dx;dy;?;textH;cond;thick;text         — plate with frame
+//   t;width;height;dx;dy;textH;cond;thick;text          — text-only plate
+//   tw;width;height;dx;dy;textH;cond;thick;text         — plate with frame
 //   w;width;height                                        — frame-only element
 // ============================================================================
 #include "DocumentParser.h"
@@ -114,13 +114,12 @@ static Document parseStreamImpl(std::istream& input,
                 if (row.size() > 2) frameH = parseDouble(row[2]);
                 if (row.size() > 3) shiftX = parseDouble(row[3]);
                 if (row.size() > 4) shiftY = parseDouble(row[4]);
-                // row[5] is unused/centering
-                if (row.size() > 6) currentPlate.textHeight_mm = parseDouble(row[6]);
-                if (row.size() > 7) currentPlate.condensation = parseDouble(row[7]) / 100.0;
-                if (row.size() > 8) currentPlate.thickness = parseDouble(row[8]);
+                if (row.size() > 5) currentPlate.textHeight_mm = parseDouble(row[5]);
+                if (row.size() > 6) currentPlate.condensation = parseDouble(row[6]) / 100.0;
+                if (row.size() > 7) currentPlate.thickness = parseDouble(row[7]);
 
                 std::string text;
-                if (row.size() > 9) text = row[9];
+                if (row.size() > 8) text = row[8];
 
                 if (cmd.size() > 1 && cmd[1] == 'w') {
                     // Plate with frame

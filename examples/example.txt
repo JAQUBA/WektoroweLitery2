@@ -1,24 +1,24 @@
 # Layout file format (semicolon-separated):
 # l                                                               — new row
-# t;  width; height; dx; dy; ?; textH; condensation; thickness; text  — text only
-# tw; width; height; dx; dy; ?; textH; condensation; thickness; text  — text + frame
+# t;  width; height; dx; dy; textH; condensation; thickness; text  — text only
+# tw; width; height; dx; dy; textH; condensation; thickness; text  — text + frame
 # w;  width; height                                               — frame only
 # Lines starting with # are ignored.
 
-tw; 100; 30; 0; 4; 5; 8; 100; 12;POMPA 1;
-tw; 100; 30; 0; 4; 5; 8; 100; 12;POMPA 2;
+tw; 100; 30; 0; 4; 8; 100; 12;POMPA 1;
+tw; 100; 30; 0; 4; 8; 100; 12;POMPA 2;
 L;
-tw; 100; 30; 0; 4; 5; 8; 100; 12;POMPA 3;
-tw; 100; 30; 0; 4; 5; 8; 100; 12;POMPA 4;
-L;
-
-t; 80; 25; 0; 5; 5; 6; 90; 12;STEROWANIE;
-t; 80; 25; 0; -5; 5; 6; 80; 12;ZDALNE;
-w; 80; 25;
-t; 80; 25; 0; 5; 5; 6; 90; 12;STEROWANIE;
-t; 80; 25; 0; -5; 5; 6; 80; 12;LOKALNE;
-w; 80; 25;
+tw; 100; 30; 0; 4; 8; 100; 12;POMPA 3;
+tw; 100; 30; 0; 4; 8; 100; 12;POMPA 4;
 L;
 
-tw; 200; 40; 0; 4; 5; 12; 150; 12;FALOWNIK 1;
+t; 80; 25; 0; 5; 6; 90; 12;STEROWANIE;
+t; 80; 25; 0; -5; 6; 80; 12;ZDALNE;
+w; 80; 25;
+t; 80; 25; 0; 5; 6; 90; 12;STEROWANIE;
+t; 80; 25; 0; -5; 6; 80; 12;LOKALNE;
+w; 80; 25;
+L;
+
+tw; 200; 40; 0; 4; 12; 150; 12;FALOWNIK 1;
 L;
