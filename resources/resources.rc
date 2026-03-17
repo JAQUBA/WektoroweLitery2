@@ -1,0 +1,38 @@
+#include <windows.h>
+
+// Application icon identifier
+#define IDI_APP_ICON 101
+
+// Application icon
+IDI_APP_ICON ICON "icon.ico"
+
+// Application manifest
+1 RT_MANIFEST "app.manifest"
+
+// Version information
+VS_VERSION_INFO VERSIONINFO
+    FILEVERSION 1,0,0,0
+    PRODUCTVERSION 1,0,0,0
+    FILEFLAGSMASK 0x3fL
+    FILEFLAGS 0x0L
+    FILEOS VOS__WINDOWS32
+    FILETYPE VFT_APP
+    FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "041504B0"
+        BEGIN
+            VALUE "FileDescription", "Vector Letters 2"
+            VALUE "FileVersion", "1.0.0"
+            VALUE "InternalName", "WektoroweLitery2"
+            VALUE "OriginalFilename", "WektoroweLitery2.exe"
+            VALUE "ProductName", "Vector Letters 2"
+            VALUE "ProductVersion", "1.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0415, 1200
+    END
+END
