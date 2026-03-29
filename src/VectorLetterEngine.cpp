@@ -123,6 +123,16 @@ static inline void addPointIfNotTerminator(PointCollection& points, double xb, d
 }
 
 // ============================================================================
+// Helper: clamp envelope width factor to prevent blowup on arc curves
+// ============================================================================
+static inline double clampedEnvelopeFactor(double pw, double alphaP) {
+    double ca = std::cos(alphaP);
+    // Clamp to avoid division by near-zero (max factor ~2.0, i.e. 60° difference)
+    if (std::fabs(ca) < 0.5) ca = (ca >= 0.0) ? 0.5 : -0.5;
+    return pw / ca;
+}
+
+// ============================================================================
 // Draw segment envelope (forward + endcap + reverse + startcap)
 // ============================================================================
 void VectorLetterEngine::drawSegmentEnvelope(PointCollection& points,
@@ -135,8 +145,9 @@ void VectorLetterEngine::drawSegmentEnvelope(PointCollection& points,
     for (int i = 0; i <= lastIdx; i++) {
         alpha = data[i].alphaMean;
         alphaP = std::abs(data[i].alphaMean - data[i].alphaPrimary);
-        m_xb = data[i].x + (std::cos(alpha) * pw / std::cos(alphaP));
-        m_yb = data[i].y + (std::sin(alpha) * pw / std::cos(alphaP));
+        double ewf = clampedEnvelopeFactor(pw, alphaP);
+        m_xb = data[i].x + (std::cos(alpha) * ewf);
+        m_yb = data[i].y + (std::sin(alpha) * ewf);
         points.push_back(Point2D(m_xb * m_scale, m_yb * m_scale));
     }
 
@@ -180,8 +191,9 @@ void VectorLetterEngine::drawSegmentEnvelope(PointCollection& points,
         }
     } else {
         alpha = data[lastIdx].alphaMean;
-        dx = std::cos(alpha) * pw / std::cos(alphaP);
-        dy = std::sin(alpha) * pw / std::cos(alphaP);
+        double ewfEnd = clampedEnvelopeFactor(pw, alphaP);
+        dx = std::cos(alpha) * ewfEnd;
+        dy = std::sin(alpha) * ewfEnd;
 
         // perpendicular
         py = dx * -1.0;
@@ -204,8 +216,9 @@ void VectorLetterEngine::drawSegmentEnvelope(PointCollection& points,
         alpha = (alpha > M_PI) ? alpha - M_PI : alpha + M_PI;
 
         alphaP = std::abs(data[i].alphaMean - data[i].alphaPrimary);
-        m_xb = data[i].x + (std::cos(alpha) * pw / std::cos(alphaP));
-        m_yb = data[i].y + (std::sin(alpha) * pw / std::cos(alphaP));
+        double ewfRev = clampedEnvelopeFactor(pw, alphaP);
+        m_xb = data[i].x + (std::cos(alpha) * ewfRev);
+        m_yb = data[i].y + (std::sin(alpha) * ewfRev);
         points.push_back(Point2D(m_xb * m_scale, m_yb * m_scale));
     }
 
@@ -262,8 +275,9 @@ void VectorLetterEngine::drawSegmentEnvelope(PointCollection& points,
         alpha = data[0].alphaMean;
         alpha = (alpha > M_PI) ? alpha - M_PI : alpha + M_PI;
 
-        dx = std::cos(alpha) * pw / std::cos(alphaP);
-        dy = std::sin(alpha) * pw / std::cos(alphaP);
+        double ewfStart = clampedEnvelopeFactor(pw, alphaP);
+        dx = std::cos(alpha) * ewfStart;
+        dy = std::sin(alpha) * ewfStart;
 
         // perpendicular
         py = dx * -1.0;
