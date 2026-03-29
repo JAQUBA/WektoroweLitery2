@@ -50,6 +50,7 @@ extern ConfigManager   config;
 extern Document*       currentDocument;
 extern LffFont*        activeFont;
 extern std::string     activeFontName;
+extern std::string     fontsDirectory;
 
 // ============================================================================
 // Application state

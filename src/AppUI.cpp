@@ -12,6 +12,7 @@
 #include <UI/Button/Button.h>
 #include <UI/InputField/InputField.h>
 #include <Util/StringUtils.h>
+#include "LffFont.h"
 #include <commctrl.h>
 #include <richedit.h>
 
@@ -26,6 +27,7 @@ static void styleBtn(SimpleWindow* win, Button* btn,
 // --- Dark theme for editor — no longer needed (RichEdit uses EM_SETBKGNDCOLOR) ---
 
 static HWND hToolButton = nullptr;
+static HWND hFontButton = nullptr;
 
 // --- Splitter drag state ---
 HWND hSplitter = nullptr;
@@ -136,8 +138,15 @@ void createUI(SimpleWindow* win) {
     hToolButton = toolBtn->getHandle();
     updateToolButtonText();
 
+    // Font selector button
+    auto* fontBtn = new Button(m + 320, y, 160, 26, "Font",
+        [](Button*) { showFontPopup(); });
+    styleBtn(win, fontBtn, CLR_TOOL_BG, CLR_TOOL_TEXT, CLR_TOOL_HOVER);
+    hFontButton = fontBtn->getHandle();
+    updateFontButtonText();
+
     // --- Material parameter fields ---
-    int px = m + 320;
+    int px = m + 485;
 
     auto* lblMat = new Label(px, y + 3, 60, 20, L"Material:");
     win->add(lblMat);
@@ -314,6 +323,43 @@ void updateToolButtonText() {
         text += StringUtils::utf8ToWide(toolPresets[activeToolIndex].name);
     }
     SetWindowTextW(hToolButton, text.c_str());
+}
+
+// ============================================================================
+// Font selector popup and button text
+// ============================================================================
+void showFontPopup() {
+    if (!hFontButton || !window) return;
+    RECT rc;
+    GetWindowRect(hFontButton, &rc);
+
+    std::vector<std::string> fonts = LffFont::listFonts(fontsDirectory);
+
+    HMENU hMenu = CreatePopupMenu();
+    for (int i = 0; i < (int)fonts.size(); i++) {
+        std::wstring name = StringUtils::utf8ToWide(fonts[i]);
+        UINT flags = MF_STRING;
+        if (fonts[i] == activeFontName) flags |= MF_CHECKED;
+        AppendMenuW(hMenu, flags, 11000 + i, name.c_str());
+    }
+
+    int cmd = TrackPopupMenu(hMenu, TPM_RETURNCMD | TPM_NONOTIFY,
+                             rc.left, rc.bottom, 0, window->getHandle(), NULL);
+    DestroyMenu(hMenu);
+
+    if (cmd >= 11000 && cmd < 11000 + (int)fonts.size()) {
+        int idx = cmd - 11000;
+        if (loadFont(fonts[idx])) {
+            updateFontButtonText();
+            doRenderPreview();
+        }
+    }
+}
+
+void updateFontButtonText() {
+    if (!hFontButton) return;
+    std::wstring text = L"\u25BC " + StringUtils::utf8ToWide(activeFontName);
+    SetWindowTextW(hFontButton, text.c_str());
 }
 
 // ============================================================================

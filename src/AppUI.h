@@ -22,6 +22,10 @@ void highlightEditorErrors(const std::vector<int>& errorLines);
 void updateToolButtonText();
 void showToolPopup();
 
+// Font selector
+void updateFontButtonText();
+void showFontPopup();
+
 // Splitter handle (managed by AppUI, repositioned by doRelayout)
 extern HWND hSplitter;
 
