@@ -42,7 +42,7 @@ WektoroweLitery2/
 | **CanvasWindow** (VectorCanvas) | Subclass of JQB_WindowsLib CanvasWindow — renders documents, nameplates, and vector toolpaths on the canvas |
 | **VectorPoint** (VectorPoint.h) | Point struct with coordinates, angles (alphaPrimary, alphaMean), serif flag, terminator flag |
 | **LffFont** (LffFont.h/.cpp) | LFF font file parser: loads all glyphs from a single .lff file, resolves glyph references, tessellates arcs |
-| **VectorLetterEngine** (VectorLetterEngine.h/.cpp) | Core vector engine: LFF/CSV import, angle computation, envelope generation, toolpath calculation |
+| **VectorLetterEngine** (VectorLetterEngine.h/.cpp) | Core vector engine: LFF import, angle computation, envelope generation, toolpath calculation |
 | **Document** | Document-level parameters (materialThickness, textDepth, safeHeight, diameter, laser mode) + collection of TableRows |
 | **TableRow** | Row of Nameplates |
 | **Nameplate** | Text layout engine: loads letter glyphs from LFF font, positions, centers within frame, generates toolpaths |
