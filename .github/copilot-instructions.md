@@ -2,7 +2,7 @@
 
 ## Project Description
 
-Native Windows desktop application (C++) for generating vector font nameplates for CNC milling and laser engraving. Reads layout definition files (.TXT), parses vector letter data from CSV files, computes tool envelope offsets, renders a real-time GDI preview, and exports G-Code (.gcode) files. Port of the original C# WPF application "WektoroweLitery" to C++17 using JQB_WindowsLib.
+Native Windows desktop application (C++) for generating vector font nameplates for CNC milling and laser engraving. Reads layout definition files (.TXT), parses vector letter data from LFF font files (LibreCAD Font Format), computes tool envelope offsets, renders a real-time GDI preview, and exports G-Code (.gcode) files. Port of the original C# WPF application "WektoroweLitery" to C++17 using JQB_WindowsLib.
 
 ## Architecture
 
@@ -16,6 +16,7 @@ WektoroweLitery2/
 │   ├── CanvasWindow.h / .cpp   # VectorCanvas — subclass of library CanvasWindow for document rendering
 │   ├── VectorPoint.h           # VectorPoint struct — point with angles and options
 │   ├── VectorLetterEngine.h / .cpp # VectorLetterEngine — vector letter engine with tool envelope
+│   ├── LffFont.h / .cpp        # LibreCAD Font Format (.lff) parser
 │   ├── Document.h              # Document model (collection of table rows)
 │   ├── TableRow.h              # Row of nameplates within a document
 │   ├── Nameplate.h / .cpp      # Single nameplate — text layout within a frame
@@ -26,7 +27,7 @@ WektoroweLitery2/
 │   ├── app.manifest            # Windows Common Controls v6 manifest
 │   ├── resources.rc            # Windows resource file (icon + manifest + version)
 │   ├── icon.ico                # Application icon
-│   └── fonts/                  # Glyph CSV files (Unicode codepoint filenames)
+│   └── fonts/                  # LFF vector font files (LibreCAD Font Format)
 └── platformio.ini              # PlatformIO config (platform: native via JQB_MinGW)
 ```
 
@@ -40,10 +41,11 @@ WektoroweLitery2/
 | **MenuHandler** | `createAppMenu()` — MenuBar with File, View, Help menus |
 | **CanvasWindow** (VectorCanvas) | Subclass of JQB_WindowsLib CanvasWindow — renders documents, nameplates, and vector toolpaths on the canvas |
 | **VectorPoint** (VectorPoint.h) | Point struct with coordinates, angles (alphaPrimary, alphaMean), serif flag, terminator flag |
-| **VectorLetterEngine** (VectorLetterEngine.h/.cpp) | Core vector engine: CSV import, angle computation, envelope generation, toolpath calculation |
+| **LffFont** (LffFont.h/.cpp) | LFF font file parser: loads all glyphs from a single .lff file, resolves glyph references, tessellates arcs |
+| **VectorLetterEngine** (VectorLetterEngine.h/.cpp) | Core vector engine: LFF/CSV import, angle computation, envelope generation, toolpath calculation |
 | **Document** | Document-level parameters (materialThickness, textDepth, safeHeight, diameter, laser mode) + collection of TableRows |
 | **TableRow** | Row of Nameplates |
-| **Nameplate** | Text layout engine: loads letter CSVs, positions, centers within frame, generates toolpaths |
+| **Nameplate** | Text layout engine: loads letter glyphs from LFF font, positions, centers within frame, generates toolpaths |
 | **DocumentParser** | Parses semicolon-separated layout files into Document model |
 | **GCodeEngine** | Generates G-Code (G00/G01/M03/M05/M30) without line numbering, with milling/laser mode support |
 
@@ -97,15 +99,19 @@ Semicolon-separated commands (lines starting with `#` are ignored as comments):
 
 **Z coordinate convention:** Bottom of material = Z0.0 (lowest point). Surface = Z(materialThickness). Text engraving → Z = materialThickness − textDepth. Frame cutting → Z = 0.0. Rapid travel → Z = materialThickness + safeHeight.
 
-### CSV Letter Format
+### LFF Font Format
 
-Each letter is a semicolon-separated CSV file in `resources/fonts/` (e.g., `65.csv` for 'A', `321.csv` for 'Ł'):
-- `x;y` — point coordinates
-- `x;y;options` — point with flags: `h` = serif, `z` = terminator, `k` = new segment
+Vector fonts use LibreCAD Font Format (.lff) files stored in `resources/fonts/`. Each .lff file contains all glyphs for a font. Format:
+- `[XXXX] char` — glyph header (hex Unicode codepoint)
+- `x1,y1;x2,y2;x3,y3,Abulge` — polyline with optional arc bulge
+- `CXXXX` — reference to another glyph (inheritance)
+- Coordinates are in ~0-9 range (9 = uppercase height), scaled internally to 0-3000.
+
+Available fonts: `standard.lff` (ISO 3098-2, default), `simplex.lff`, `romans.lff`, `iso.lff`, `cursive.lff`.
 
 ### Vector Envelope Algorithm
 
-1. Import letter points from CSV
+1. Import letter points from LFF glyph (with arc tessellation)
 2. Compute primary angles (`alphaPrimary`) between consecutive points
 3. Compute mean angles (`alphaMean`) for smooth envelope joints
 4. Draw segment axis (center line)
@@ -138,6 +144,7 @@ Plain lines (no `Nxxxx` numbering) with:
 | `export_material_thickness` | Material thickness [mm] | `1,50` |
 | `export_text_depth` | Text engraving depth [mm] | `0,20` |
 | `export_safe_height` | Safe travel height [mm] | `5,00` |
+| `font_name` | Active LFF font name | `standard` |
 | `grid_visible` | Show grid in canvas | `1` |
 | `logwin_x/y/w/h` | Log window position/size | (auto) |
 
@@ -157,13 +164,14 @@ Add via `menuBar->addMenu()` / `m.addItem()` in `MenuHandler.cpp`. Shared action
 Add drawing methods to `VectorCanvas` in `CanvasWindow.cpp`. Base canvas features (zoom/pan/grid/double-buffer) are inherited from JQB_WindowsLib `CanvasWindow`. World coordinates are in mm; use `toScreenX()`/`toScreenY()` for transforms.
 
 ### Adding New Letter Formats
-Extend `VectorLetterEngine::importFromCSV()` in `VectorLetterEngine.cpp`.
+Add new .lff font files to `resources/fonts/`. The LffFont parser handles them automatically.
 
 ### Extending G-Code Output
 Add methods to `GCodeEngine`. Keep plain commands without `N` line numbering.
 
 ### Font Files Path
-- Glyph CSV files are loaded from `resources/fonts/` resolved relative to executable location.
+- LFF font files are loaded from `resources/fonts/` resolved relative to executable location.
+- Active font name is stored in `config.ini` as `font_name`.
 - Do not reintroduce manual folder selection in UI unless explicitly requested.
 
 ### SimpleWindow is a Singleton

@@ -5,6 +5,7 @@
 #define NAMEPLATE_H
 
 #include "VectorLetterEngine.h"
+#include "LffFont.h"
 #include <vector>
 #include <string>
 
@@ -27,13 +28,12 @@ public:
 
     Nameplate() = default;
 
-    void appendText(const std::string& txt, const std::string& csvDir);
+    void appendText(const std::string& txt, const LffFont& font);
 
     const std::vector<VectorLetterEngine>& getLetters() const { return m_letters; }
 
 private:
     static constexpr double SHIFT_Y_BASE = 3000.0;
-    static constexpr double SPACE_WIDTH = 1200.0;
 
     double m_frameCenterX_mm = 0.0;
     double m_frameCenterY_mm = 0.0;

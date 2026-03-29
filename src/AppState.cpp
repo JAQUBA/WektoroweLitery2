@@ -7,6 +7,7 @@
 #include "DocumentParser.h"
 #include "GCodeEngine.h"
 #include "CanvasWindow.h"
+#include "LffFont.h"
 
 #include <Core.h>
 #include <UI/SimpleWindow/SimpleWindow.h>
@@ -36,8 +37,10 @@ InputField*    fldSafeH     = nullptr;
 
 ConfigManager  config("config.ini");
 Document*      currentDocument = nullptr;
+LffFont*       activeFont = nullptr;
+std::string    activeFontName = "standard";
 
-std::string    csvDirectory  = "";
+std::string    fontsDirectory = "";
 std::string    currentFilePath = "";
 std::string    lastInputDir  = "";
 std::string    lastOutputFile = "";
@@ -95,7 +98,7 @@ static std::string getFontsDirectory() {
     };
 
     for (const auto& candidate : candidates) {
-        if (fileExists(candidate + "65.csv")) {
+        if (fileExists(candidate + "standard.lff")) {
             return candidate;
         }
     }
@@ -129,7 +132,10 @@ static std::string intToStr(int n) {
 }
 
 void loadSettings() {
-    csvDirectory  = getFontsDirectory();
+    fontsDirectory = getFontsDirectory();
+    activeFontName = config.getValue("font_name", "standard");
+    loadFont(activeFontName);
+
     currentFilePath = config.getValue("last_input_file", "");
     lastInputDir  = config.getValue("last_input_dir", "");
     lastOutputFile = config.getValue("last_output_file", "");
@@ -184,6 +190,7 @@ void saveSettings() {
     config.setValue("last_output_file", lastOutputFile);
     config.setValue("last_output_dir", lastOutputDir);
     config.setValue("grid_visible", gridVisible ? "1" : "0");
+    config.setValue("font_name", activeFontName);
 
     // Save tool presets
     config.setValue("tool_count", intToStr((int)toolPresets.size()));
@@ -380,8 +387,7 @@ void doRenderPreview() {
         }
         return;
     }
-    if (csvDirectory.empty()) return;
-    if (!fileExists(csvDirectory + "65.csv")) return;
+    if (!activeFont) return;
 
     double diam = 0.0, step = 0.0;
     if (!tryParseDouble(exportDiameter, diam) ||
@@ -396,7 +402,7 @@ void doRenderPreview() {
     }
 
     std::vector<int> errorLines;
-    Document doc = DocumentParser::parseString(content, csvDirectory, diam, step, &errorLines);
+    Document doc = DocumentParser::parseString(content, *activeFont, diam, step, &errorLines);
     currentDocument = new Document(doc);
 
     highlightEditorErrors(errorLines);
@@ -424,14 +430,8 @@ void doExportGCode() {
         lastOutputDir = extractDir(path);
     }
 
-    if (csvDirectory.empty()) {
-        logMsg(L"Fonts directory not set");
-        return;
-    }
-
-    if (!fileExists(csvDirectory + "65.csv")) {
-        std::wstring msg = L"Font CSV files not found in: " + StringUtils::utf8ToWide(csvDirectory);
-        logMsg(msg);
+    if (!activeFont) {
+        logMsg(L"No font loaded");
         return;
     }
 
@@ -460,7 +460,7 @@ void doExportGCode() {
         return;
     }
 
-    Document exportDoc = DocumentParser::parseString(content, csvDirectory, diam, step);
+    Document exportDoc = DocumentParser::parseString(content, *activeFont, diam, step);
     if (exportDoc.getRows().empty()) {
         logMsg(L"Document parsing failed or returned no rows");
         return;
@@ -509,6 +509,28 @@ void doToggleGrid() {
     if (canvas) {
         canvas->setGridVisible(gridVisible);
     }
+}
+
+// ============================================================================
+// Font loading
+// ============================================================================
+bool loadFont(const std::string& fontName) {
+    if (activeFont) {
+        delete activeFont;
+        activeFont = nullptr;
+    }
+
+    std::string path = fontsDirectory + fontName + ".lff";
+    activeFont = new LffFont();
+    if (!activeFont->load(path)) {
+        delete activeFont;
+        activeFont = nullptr;
+        logMsg(L"Failed to load font: " + StringUtils::utf8ToWide(path));
+        return false;
+    }
+    activeFontName = fontName;
+    config.setValue("font_name", fontName);
+    return true;
 }
 
 // ============================================================================
