@@ -320,6 +320,7 @@ void doNewFile() {
     currentFilePath = "";
     updateWindowTitle();
     doRenderPreview();
+    if (canvas) canvas->fitToContent();
     logMsg(L"New document");
 }
 
@@ -343,6 +344,7 @@ void doOpenFile() {
     lastInputDir = extractDir(path);
     updateWindowTitle();
     doRenderPreview();
+    if (canvas) canvas->fitToContent();
     logMsg(L"Opened: " + StringUtils::utf8ToWide(path));
 }
 
@@ -383,7 +385,6 @@ void doRenderPreview() {
         }
         if (canvas) {
             canvas->setDocument(nullptr);
-            canvas->fitToContent();
         }
         return;
     }
@@ -409,7 +410,6 @@ void doRenderPreview() {
 
     if (canvas) {
         canvas->setDocument(currentDocument);
-        canvas->fitToContent();
     }
 }
 
@@ -550,7 +550,6 @@ void doSelectTool(int index) {
     applyActiveToolPreset();
     updateToolButtonText();
     saveSettings();
-    doRenderPreview();
 }
 
 // ============================================================================
@@ -652,7 +651,6 @@ static LRESULT CALLBACK ToolPresetsDlgProc(
                     applyActiveToolPreset();
                     updateToolButtonText();
                     saveSettings();
-                    doRenderPreview();
                 }
                 return 0;
             }
@@ -690,7 +688,6 @@ static LRESULT CALLBACK ToolPresetsDlgProc(
                         if (s_toolDlgSel == activeToolIndex) {
                             applyActiveToolPreset();
                             updateToolButtonText();
-                            doRenderPreview();
                         }
                         saveSettings();
                     }
@@ -701,7 +698,6 @@ static LRESULT CALLBACK ToolPresetsDlgProc(
                     applyActiveToolPreset();
                     updateToolButtonText();
                     saveSettings();
-                    doRenderPreview();
                     DestroyWindow(hwnd);
                     break;
                 }
@@ -717,7 +713,6 @@ static LRESULT CALLBACK ToolPresetsDlgProc(
             applyActiveToolPreset();
             updateToolButtonText();
             saveSettings();
-            doRenderPreview();
             DestroyWindow(hwnd);
             return 0;
     }

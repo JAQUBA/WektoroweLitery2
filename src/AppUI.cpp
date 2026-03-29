@@ -351,7 +351,6 @@ void showFontPopup() {
         int idx = cmd - 11000;
         if (loadFont(fonts[idx])) {
             updateFontButtonText();
-            doRenderPreview();
         }
     }
 }

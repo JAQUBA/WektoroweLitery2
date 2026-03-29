@@ -65,6 +65,7 @@ void setup() {
 
     // Initial render
     doRenderPreview();
+    if (canvas) canvas->fitToContent();
 
     // --- Save settings on close ---
     window->onClose([]() {
