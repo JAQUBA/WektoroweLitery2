@@ -49,7 +49,7 @@ std::string    exportDiameter = "0,30";
 std::string    exportStepover = "0,15";
 std::string    exportMaterialThickness = "1,50";
 std::string    exportTextDepth = "0,20";
-std::string    exportSafeHeight = "5,00";
+std::string    exportSafeHeight = "2,00";
 bool           gridVisible   = true;
 
 double         workspaceWidth  = 300.0;
@@ -169,7 +169,7 @@ void loadSettings() {
     // Load material parameters (independent of tool presets)
     exportMaterialThickness = config.getValue("export_material_thickness", "1,50");
     exportTextDepth = config.getValue("export_text_depth", "0,20");
-    exportSafeHeight = config.getValue("export_safe_height", "5,00");
+    exportSafeHeight = config.getValue("export_safe_height", "2,00");
 
     double w = 300.0, h = 200.0;
     if (tryParseDouble(config.getValue("workspace_width", "300"), w) && w > 0)
