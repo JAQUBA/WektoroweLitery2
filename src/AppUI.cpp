@@ -176,17 +176,17 @@ void createUI(SimpleWindow* win) {
 
     px += 113;
 
-    auto* lblSafe = new Label(px, y + 3, 48, 20, L"Safe H:");
+    auto* lblSafe = new Label(px, y + 3, 48, 20, L"Safe Z:");
     win->add(lblSafe);
     lblSafe->setFont(L"Segoe UI", 11, true);
     lblSafe->setTextColor(CLR_LABEL_TEXT);
     lblSafe->setBackColor(CLR_WIN_BG);
 
-    fldSafeH = new InputField(px + 51, y, 55, 24, exportSafeHeight.c_str(),
+    fldSafeZ = new InputField(px + 51, y, 55, 24, exportSafeHeight.c_str(),
         [](InputField* f, const char* text) {
             exportSafeHeight = text;
         });
-    win->add(fldSafeH);
+    win->add(fldSafeZ);
 
     y += 30;
 

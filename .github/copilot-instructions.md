@@ -139,14 +139,30 @@ Plain lines (no `Nxxxx` numbering) with:
 | `last_output_file` | Last G-Code output path | (empty) |
 | `last_input_dir` | Last input file directory | (empty) |
 | `last_output_dir` | Last output file directory | (empty) |
-| `export_diameter` | Tool diameter [mm] | `0,30` |
-| `export_stepover` | Tool stepover [mm] | `0,15` |
 | `export_material_thickness` | Material thickness [mm] | `1,50` |
 | `export_text_depth` | Text engraving depth [mm] | `0,20` |
 | `export_safe_height` | Safe travel height [mm] | `5,00` |
 | `font_name` | Active LFF font name | `standard` |
 | `grid_visible` | Show grid in canvas | `1` |
 | `logwin_x/y/w/h` | Log window position/size | (auto) |
+
+### Tool Presets (tools.ini)
+
+Tool presets are stored in a separate `tools.ini` file (not `config.ini`). Format compatible with gbr2gcode — both projects use the same key schema:
+
+| Key pattern | Description | Example |
+|-------------|-------------|---------|
+| `tool_count` | Number of tool presets | `9` |
+| `tool_N_name` | Tool name | `V-bit 60deg 0.2mm` |
+| `tool_N_diameter` | Tool diameter [mm] | `0.200` |
+| `tool_N_stepover` | Tool stepover [mm] | `0.10` |
+| `tool_N_cutDepth` | Cut depth [mm] (negative) | `-0.100` |
+| `tool_N_safeHeight` | Safe travel height [mm] | `5.00` |
+| `tool_N_feedXY` | XY feed rate [mm/min] | `300.0` |
+| `tool_N_feedZ` | Z feed rate [mm/min] | `100.0` |
+| `active_tool` | Active tool index | `0` |
+
+Default presets created automatically on first run: V-bits (60°/30°), end mills (0.8/1.0/2.0mm), drills (0.8/1.0mm), laser (0.1mm). WektoroweLitery2 primarily uses `diameter` and `stepover` fields.
 
 ## Copilot Guidelines
 
