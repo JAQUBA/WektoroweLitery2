@@ -5,8 +5,8 @@
 #ifndef GCODE_ENGINE_H
 #define GCODE_ENGINE_H
 
-#include "Document.h"
-#include "VectorLetterEngine.h"
+#include "../Document/Document.h"
+#include "../Font/VectorLetterEngine.h"
 #include <string>
 #include <sstream>
 #include <vector>

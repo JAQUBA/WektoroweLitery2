@@ -12,7 +12,7 @@
 #include <UI/Button/Button.h>
 #include <UI/InputField/InputField.h>
 #include <Util/StringUtils.h>
-#include "LffFont.h"
+#include "Font/LffFont.h"
 #include <commctrl.h>
 #include <richedit.h>
 

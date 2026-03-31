@@ -5,7 +5,7 @@
 #define DOCUMENT_PARSER_H
 
 #include "Document.h"
-#include "LffFont.h"
+#include "../Font/LffFont.h"
 #include <string>
 #include <vector>
 

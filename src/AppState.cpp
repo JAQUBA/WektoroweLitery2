@@ -3,11 +3,11 @@
 // ============================================================================
 #include "AppState.h"
 #include "AppUI.h"
-#include "Document.h"
-#include "DocumentParser.h"
-#include "GCodeEngine.h"
+#include "Document/Document.h"
+#include "Document/DocumentParser.h"
+#include "GCode/GCodeEngine.h"
 #include "CanvasWindow.h"
-#include "LffFont.h"
+#include "Font/LffFont.h"
 
 #include <Core.h>
 #include <UI/SimpleWindow/SimpleWindow.h>

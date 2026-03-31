@@ -14,15 +14,18 @@ WektoroweLitery2/
 │   ├── AppUI.h / .cpp          # UI component creation (createUI) with dark theme
 │   ├── MenuHandler.h / .cpp    # Menu bar creation and command routing
 │   ├── CanvasWindow.h / .cpp   # VectorCanvas — subclass of library CanvasWindow for document rendering
-│   ├── VectorPoint.h           # VectorPoint struct — point with angles and options
-│   ├── VectorLetterEngine.h / .cpp # VectorLetterEngine — vector letter engine with tool envelope
-│   ├── LffFont.h / .cpp        # LibreCAD Font Format (.lff) parser
-│   ├── Document.h              # Document model (collection of table rows)
-│   ├── TableRow.h              # Row of nameplates within a document
-│   ├── Nameplate.h / .cpp      # Single nameplate — text layout within a frame
-│   ├── DocumentParser.h / .cpp # Layout file (.TXT) parser into Document model
-│   ├── GCodeEngine.h / .cpp    # G-Code generator for CNC / laser
-│   └── theme.h                 # Dark theme color palette
+│   ├── theme.h                 # Dark theme color palette
+│   ├── Document/               # Document model and parsing
+│   │   ├── Document.h              # Document model (collection of table rows)
+│   │   ├── TableRow.h              # Row of nameplates within a document
+│   │   ├── Nameplate.h / .cpp      # Single nameplate — text layout within a frame
+│   │   └── DocumentParser.h / .cpp # Layout file (.TXT) parser into Document model
+│   ├── Font/                   # Vector font engine
+│   │   ├── VectorPoint.h           # VectorPoint struct — point with angles and options
+│   │   ├── VectorLetterEngine.h / .cpp # VectorLetterEngine — vector letter engine with tool envelope
+│   │   └── LffFont.h / .cpp        # LibreCAD Font Format (.lff) parser
+│   └── GCode/                  # G-Code generation
+│       └── GCodeEngine.h / .cpp    # G-Code generator for CNC / laser
 ├── resources/
 │   ├── app.manifest            # Windows Common Controls v6 manifest
 │   ├── resources.rc            # Windows resource file (icon + manifest + version)
@@ -40,14 +43,14 @@ WektoroweLitery2/
 | **AppUI** | `createUI(SimpleWindow*)` — creates toolbar with input fields and buttons |
 | **MenuHandler** | `createAppMenu()` — MenuBar with File, View, Help menus |
 | **CanvasWindow** (VectorCanvas) | Subclass of JQB_WindowsLib CanvasWindow — renders documents, nameplates, and vector toolpaths on the canvas |
-| **VectorPoint** (VectorPoint.h) | Point struct with coordinates, angles (alphaPrimary, alphaMean), serif flag, terminator flag |
-| **LffFont** (LffFont.h/.cpp) | LFF font file parser: loads all glyphs from a single .lff file, resolves glyph references, tessellates arcs |
-| **VectorLetterEngine** (VectorLetterEngine.h/.cpp) | Core vector engine: LFF import, angle computation, envelope generation, toolpath calculation |
-| **Document** | Document-level parameters (materialThickness, textDepth, safeHeight, diameter, laser mode) + collection of TableRows |
-| **TableRow** | Row of Nameplates |
-| **Nameplate** | Text layout engine: loads letter glyphs from LFF font, positions, centers within frame, generates toolpaths |
-| **DocumentParser** | Parses semicolon-separated layout files into Document model |
-| **GCodeEngine** | Generates G-Code (G00/G01/M03/M05/M30) without line numbering, with milling/laser mode support |
+| **Document/VectorPoint** (Font/VectorPoint.h) | Point struct with coordinates, angles (alphaPrimary, alphaMean), serif flag, terminator flag |
+| **Font/LffFont** (Font/LffFont.h/.cpp) | LFF font file parser: loads all glyphs from a single .lff file, resolves glyph references, tessellates arcs |
+| **Font/VectorLetterEngine** (Font/VectorLetterEngine.h/.cpp) | Core vector engine: LFF import, angle computation, envelope generation, toolpath calculation |
+| **Document/Document** (Document/Document.h) | Document-level parameters (materialThickness, textDepth, safeHeight, diameter, laser mode) + collection of TableRows |
+| **Document/TableRow** (Document/TableRow.h) | Row of Nameplates |
+| **Document/Nameplate** (Document/Nameplate.h/.cpp) | Text layout engine: loads letter glyphs from LFF font, positions, centers within frame, generates toolpaths |
+| **Document/DocumentParser** (Document/DocumentParser.h/.cpp) | Parses semicolon-separated layout files into Document model |
+| **GCode/GCodeEngine** (GCode/GCodeEngine.h/.cpp) | Generates G-Code (G00/G01/M03/M05/M30) without line numbering, with milling/laser mode support |
 
 ## Tech Stack
 
@@ -183,7 +186,7 @@ Add drawing methods to `VectorCanvas` in `CanvasWindow.cpp`. Base canvas feature
 Add new .lff font files to `resources/fonts/`. The LffFont parser handles them automatically.
 
 ### Extending G-Code Output
-Add methods to `GCodeEngine`. Keep plain commands without `N` line numbering.
+Add methods to `GCodeEngine` in `GCode/GCodeEngine.cpp`. Keep plain commands without `N` line numbering.
 
 ### Font Files Path
 - LFF font files are loaded from `resources/fonts/` resolved relative to executable location.

@@ -4,8 +4,8 @@
 #ifndef CANVAS_WINDOW_H
 #define CANVAS_WINDOW_H
 
-#include "Document.h"
-#include "VectorLetterEngine.h"
+#include "Document/Document.h"
+#include "Font/VectorLetterEngine.h"
 #include "theme.h"
 #include <UI/CanvasWindow/CanvasWindow.h>
 

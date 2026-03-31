@@ -4,8 +4,8 @@
 #ifndef NAMEPLATE_H
 #define NAMEPLATE_H
 
-#include "VectorLetterEngine.h"
-#include "LffFont.h"
+#include "../Font/VectorLetterEngine.h"
+#include "../Font/LffFont.h"
 #include <vector>
 #include <string>
 
