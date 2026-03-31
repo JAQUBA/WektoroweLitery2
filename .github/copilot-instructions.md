@@ -1,56 +1,61 @@
 # Copilot Instructions — Vector Letters 2
 
+> **IMPORTANT:** Keep this file and `README.md` up to date whenever you add, rename, or remove modules, change data structures, add UI components, modify G-Code output, or change configuration keys.
+
 ## Project Description
 
-Native Windows desktop application (C++) for generating vector font nameplates for CNC milling and laser engraving. Reads layout definition files (.TXT), parses vector letter data from LFF font files (LibreCAD Font Format), computes tool envelope offsets, renders a real-time GDI preview, and exports G-Code (.gcode) files. Port of the original C# WPF application "WektoroweLitery" to C++17 using JQB_WindowsLib.
+Native Windows desktop application (C++) for generating vector font nameplates for CNC milling and laser engraving. Reads layout definition files (.TXT), parses vector letter data from LFF font files (LibreCAD Font Format), computes tool envelope offsets, renders a real-time GDI preview, and exports G-Code (.gcode) files with G2/G3 arc fitting. Port of the original C# WPF application "WektoroweLitery" to C++17 using JQB_WindowsLib.
 
 ## Architecture
 
 ```
 WektoroweLitery2/
 ├── src/
-│   ├── main.cpp                # Entry point: setup(), loop() — module orchestration
-│   ├── AppState.h / .cpp       # Global state, variables, helpers (logMsg, loadSettings, doRunDocument)
-│   ├── AppUI.h / .cpp          # UI component creation (createUI) with dark theme
-│   ├── MenuHandler.h / .cpp    # Menu bar creation and command routing
-│   ├── CanvasWindow.h / .cpp   # VectorCanvas — subclass of library CanvasWindow for document rendering
-│   ├── theme.h                 # Dark theme color palette
-│   ├── Document/               # Document model and parsing
-│   │   ├── Document.h              # Document model (collection of table rows)
-│   │   ├── TableRow.h              # Row of nameplates within a document
-│   │   ├── Nameplate.h / .cpp      # Single nameplate — text layout within a frame
+│   ├── main.cpp              # Entry point: setup(), loop() — window, canvas, close handler
+│   ├── AppState.h / .cpp     # Global state, ToolPreset, settings, shared actions, font loading
+│   ├── AppUI.h / .cpp        # Toolbar, editor, splitter, font/tool popups, error highlighting
+│   ├── MenuHandler.h / .cpp  # Menu bar creation and command routing
+│   ├── CanvasWindow.h / .cpp # VectorCanvas — subclass of library CanvasWindow for document rendering
+│   ├── theme.h               # Dark theme color palette (extends ThemeTokyoNight)
+│   ├── Document/             # Document model and parsing
+│   │   ├── Document.h            # Document model (settings + collection of table rows)
+│   │   ├── TableRow.h            # Row of nameplates within a document
+│   │   ├── Nameplate.h / .cpp    # Single nameplate — text layout, glyph loading, centering
 │   │   └── DocumentParser.h / .cpp # Layout file (.TXT) parser into Document model
-│   ├── Font/                   # Vector font engine
-│   │   ├── VectorPoint.h           # VectorPoint struct — point with angles and options
-│   │   ├── VectorLetterEngine.h / .cpp # VectorLetterEngine — vector letter engine with tool envelope
-│   │   └── LffFont.h / .cpp        # LibreCAD Font Format (.lff) parser
-│   └── GCode/                  # G-Code generation
-│       └── GCodeEngine.h / .cpp    # G-Code generator for CNC / laser
+│   ├── Font/                 # Vector font engine
+│   │   ├── VectorPoint.h        # VectorPoint struct — point with angles, serif, terminator
+│   │   ├── VectorLetterEngine.h / .cpp # Vector envelope: angle computation, offset generation, multi-pass
+│   │   └── LffFont.h / .cpp     # LibreCAD Font Format (.lff) parser
+│   └── GCode/                # G-Code generation
+│       └── GCodeEngine.h / .cpp  # GRBL-compatible G-Code with G2/G3 arc fitting
 ├── resources/
-│   ├── app.manifest            # Windows Common Controls v6 manifest
-│   ├── resources.rc            # Windows resource file (icon + manifest + version)
-│   ├── icon.ico                # Application icon
-│   └── fonts/                  # LFF vector font files (LibreCAD Font Format)
-└── platformio.ini              # PlatformIO config (platform: native via JQB_MinGW)
+│   ├── app.manifest          # Windows Common Controls v6 manifest
+│   ├── resources.rc          # Windows resource file (icon + manifest + version)
+│   ├── icon.ico              # Application icon
+│   └── fonts/                # LFF vector font files (26 fonts)
+├── examples/                 # Example layout files (.TXT)
+├── scripts/
+│   └── copy_fonts.py         # Post-build: copies fonts to output directory
+└── platformio.ini            # PlatformIO config (platform: native via JQB_MinGW)
 ```
 
 ### Module Responsibilities
 
 | Module | Responsibility |
 |--------|---------------|
-| **main.cpp** | `setup()` / `loop()` — window, menu, UI, canvas init; onClose cleanup |
-| **AppState** | Global variable definitions, settings load/save (INI), shared actions (`doRunDocument()`, `doExportGCode()`, `doToggleLogWindow()`, `doToggleGrid()`) |
-| **AppUI** | `createUI(SimpleWindow*)` — creates toolbar with input fields and buttons |
-| **MenuHandler** | `createAppMenu()` — MenuBar with File, View, Help menus |
-| **CanvasWindow** (VectorCanvas) | Subclass of JQB_WindowsLib CanvasWindow — renders documents, nameplates, and vector toolpaths on the canvas |
-| **Document/VectorPoint** (Font/VectorPoint.h) | Point struct with coordinates, angles (alphaPrimary, alphaMean), serif flag, terminator flag |
-| **Font/LffFont** (Font/LffFont.h/.cpp) | LFF font file parser: loads all glyphs from a single .lff file, resolves glyph references, tessellates arcs |
-| **Font/VectorLetterEngine** (Font/VectorLetterEngine.h/.cpp) | Core vector engine: LFF import, angle computation, envelope generation, toolpath calculation |
-| **Document/Document** (Document/Document.h) | Document-level parameters (materialThickness, textDepth, safeHeight, diameter, laser mode) + collection of TableRows |
-| **Document/TableRow** (Document/TableRow.h) | Row of Nameplates |
-| **Document/Nameplate** (Document/Nameplate.h/.cpp) | Text layout engine: loads letter glyphs from LFF font, positions, centers within frame, generates toolpaths |
-| **Document/DocumentParser** (Document/DocumentParser.h/.cpp) | Parses semicolon-separated layout files into Document model |
-| **GCode/GCodeEngine** (GCode/GCodeEngine.h/.cpp) | Generates G-Code (G00/G01/M03/M05/M30) without line numbering, with milling/laser mode support |
+| **main.cpp** | `setup()` / `loop()` — window creation (1200×700), menu, UI, canvas init, `doRelayout()`, close handler saves settings |
+| **AppState** | `ToolPreset` struct. Global state: `currentDocument`, `activeFont`, tool presets, export params. Functions: `loadSettings()` / `saveSettings()`, `doRenderPreview()`, `doExportGCode()`, `doNewFile()` / `doOpenFile()` / `doSaveFile()` / `doSaveFileAs()`, `doShowToolPresets()`, `doShowWorkspaceSettings()`, `doRelayout()`, `applyActiveToolPreset()`, `loadFont()`, file dialogs, `logMsg()` |
+| **AppUI** | `createUI()` — Export button, tool/font selector popups, Material/Depth/Safe Z fields, output path field, RichEdit editor (Consolas 12pt, auto-render with 300 ms debounce), draggable splitter, `highlightEditorErrors()`, `showToolPopup()` / `showFontPopup()` |
+| **MenuHandler** | `createAppMenu()` — File (New, Open, Save, Save As, Export, Exit), View (grid, reset, log), Settings (tool presets, workspace), Help (About) |
+| **CanvasWindow** (VectorCanvas) | Subclass of JQB_WindowsLib `CanvasWindow` — renders workspace bounds, documents (rows → nameplates → letter vectors + frames), `setDocument()`, `fitToContent()` |
+| **Font/VectorPoint** | Point struct: `x`, `y`, `alphaPrimary`, `alphaMean`, `widthFactor`, `hasSerif`, `isTerminator`, `options` |
+| **Font/LffFont** | LFF font parser: `load(path)` parses glyphs (header, polylines, arcs, references), `getGlyph(codePoint)`, `getLetterSpacing()`, `listFonts(dir)`. Structs: `LffGlyph` (codePoint, width, strokes), `LffPoint` (x, y, bulge) |
+| **Font/VectorLetterEngine** | Core engine: constructs from `LffGlyph` with scale/offset/tool params, `generateFullPath()` → `PointCollection` output. Steps: `computeAlphaPrimary()` → `computeAlphaMean()` → `drawSegmentAxis()` → `drawSegmentEnvelope()` (forward pass, endcap, reverse, startcap, multi-pass). Transforms: `multiplyX()`, `addX()` |
+| **Document/Document** | Fields: `millingDiameter_mm`, `stepover_mm`, `materialThickness_mm`, `textDepth_mm`, `safeHeight_mm`, `feedXY_mm`, `feedZ_mm`, `laserMode`. Methods: `addRow()`, `getRows()` |
+| **Document/TableRow** | Row of `Nameplate` objects: `addNameplate()`, `getNameplates()` |
+| **Document/Nameplate** | Fields: frame geometry, `text`, `textHeight_mm`, `condensation`, `thickness`, `diameter`, `stepover`, `hasFrame`. Method: `appendText(text, font)` — UTF-8 → Unicode, loads glyphs, applies scaling/condensation, centers in frame, generates envelope via VectorLetterEngine |
+| **Document/DocumentParser** | Parses semicolon-separated layout files: `t`/`tw`/`w`/`l` commands, decimal comma→dot conversion, UTF-8 BOM stripping, error line tracking |
+| **GCode/GCodeEngine** | GRBL export: preamble (`G21 G90 G17 G94 G54 G91.1`), G00/G01/G02/G03, greedy arc fitting (tolerance 0.01 mm), collinear reduction (0.005 mm), feed rate management (`F{feedZ}` on Z plunge, `F{feedXY}` on first XY), milling/laser mode, `exportDocument()` / `exportSingleFrame()`, optimization stats |
 
 ## Tech Stack
 
@@ -58,6 +63,7 @@ WektoroweLitery2/
 - **Build system**: PlatformIO (`platform = native` via JQB_MinGW)
 - **UI framework**: [JQB_WindowsLib](https://github.com/JAQUBA/JQB_WindowsLib) — lightweight Win32 UI library
 - **Rendering**: WinAPI GDI (via reusable CanvasWindow from JQB_WindowsLib — zoom/pan/grid inherited)
+- **Font format**: LibreCAD Font Format (.lff)
 - **Target platform**: Windows 10+ (x64)
 
 ## Coding Conventions
@@ -75,24 +81,49 @@ WektoroweLitery2/
 ### Application Pattern
 
 - JQB_WindowsLib defines `setup()` and `loop()` — Arduino-like
-- `setup()` → load settings → window + menu → UI → canvas
+- `setup()` → load settings → window + menu → UI → canvas → relayout → load last file
 - `loop()` → main loop (empty — event-driven via callbacks)
 - UI components created via `new` and added to `SimpleWindow` via `window->add()`
 - **Do not change** the `setup()` and `loop()` signatures — framework entry points
 
 ### Dark Theme
 
-Uses Tokyo Night base from JQB_WindowsLib, extended with app-specific colors in `theme.h`.
+Uses Tokyo Night base from JQB_WindowsLib (`ThemeTokyoNight.h`), extended with app-specific colors in `theme.h`:
+- `CLR_ACTION_*` — action buttons
+- `CLR_TOOL_*` — tool selector
+- `CLR_EXPORT_*` — export button (green)
+- `CLR_CANVAS_BG`, `CLR_GRID_LINE` — canvas
+- `CLR_VECTOR_LINE` (green), `CLR_FRAME_LINE` (red) — rendering
+- `CLR_EDITOR_BG`, `CLR_EDITOR_TEXT`, `CLR_ERROR_TEXT` — editor
+- `CLR_SPLITTER`, `CLR_SPLITTER_HOVER` — splitter
+- `CLR_WORKSPACE_LINE` — workspace bounds
 
 ### Menu Bar
 
 ```
-File → Run document | Export G-Code | Exit
-View → Show grid | Reset view | Log window
-Help → About...
+File      → New | Open... | Save | Save As... | Export G-Code | Exit
+View      → Show grid | Reset view | Log window
+Settings  → Tool presets... | Machine workspace size...
+Help      → About...
 ```
 
-### Layout File Format (.TXT)
+### UI Layout
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ [Export GCode] [▼ Tool preset] [▼ Font] Material|Depth|Safe Z │  ← Row 1
+│ Output: [path field] [...] │ Info label                       │  ← Row 2
+├────────────────┬──┬──────────────────────────────────────┤
+│ RichEdit       │░░│ Canvas (VectorCanvas)                │  ← Split
+│ layout editor  │░░│ zoom/pan/grid                        │
+│ (Consolas 12)  │░░│ workspace bounds + letters + frames  │
+└────────────────┴──┴──────────────────────────────────────┘
+                  ↑ draggable splitter
+```
+
+---
+
+## Layout File Format (.TXT)
 
 Semicolon-separated commands (lines starting with `#` are ignored as comments):
 - `l` — new row (line break)
@@ -100,41 +131,102 @@ Semicolon-separated commands (lines starting with `#` are ignored as comments):
 - `tw;width;height;dx;dy;textH;condensation;thickness;text` — nameplate with frame
 - `w;width;height` — frame-only element
 
-**Z coordinate convention:** Bottom of material = Z0.0 (lowest point). Surface = Z(materialThickness). Text engraving → Z = materialThickness − textDepth. Frame cutting → Z = 0.0. Rapid travel → Z = materialThickness + safeHeight.
+Parameters: width/height in mm, dx/dy = text offset, textH = font size in mm, condensation = horizontal scale (100 = normal, 55 = narrow), thickness = stroke width units.
 
-### LFF Font Format
+---
 
-Vector fonts use LibreCAD Font Format (.lff) files stored in `resources/fonts/`. Each .lff file contains all glyphs for a font. Format:
+## LFF Font Format
+
+Vector fonts use LibreCAD Font Format (.lff) files stored in `resources/fonts/`. Each .lff file contains all glyphs for a font.
+
+**File format:**
+- `# Header` — comments with font name, letter spacing, word spacing
 - `[XXXX] char` — glyph header (hex Unicode codepoint)
 - `x1,y1;x2,y2;x3,y3,Abulge` — polyline with optional arc bulge
-- `CXXXX` — reference to another glyph (inheritance)
-- Coordinates are in ~0-9 range (9 = uppercase height), scaled internally to 0-3000.
+- `CXXXX` — reference to another glyph (inheritance, 2-level resolution)
+- Coordinates are in ~0–9 range (9 = uppercase height), scaled internally via `LFF_SCALE = 3000.0 / 9.0`
 
-Available fonts: `standard.lff` (ISO 3098-2, default), `simplex.lff`, `romans.lff`, `iso.lff`, `cursive.lff`.
+**Available fonts** (26 files): standard (default), simplex, romans, romanc, romand, romanp, romant, romansi, cursive, scriptc, scripts, italicc, italiccs, italict, gothgbt, gothgrt, gothitt, iso, iso3098, iso3098_i, greekc, greeks, cyrillic_ii, kst32b, unicode.
 
-### Vector Envelope Algorithm
+---
 
-1. Import letter points from LFF glyph (with arc tessellation)
-2. Compute primary angles (`alphaPrimary`) between consecutive points
-3. Compute mean angles (`alphaMean`) for smooth envelope joints
-4. Draw segment axis (center line)
-5. Generate envelope offsets at computed angles (tool compensation)
-6. Handle serif endpoints and perpendicular endcaps
-7. Multiple passes with increasing offset for thick strokes
+## Vector Envelope Algorithm
 
-### G-Code Format
+1. Import letter points from LFF glyph (with arc tessellation from bulge values)
+2. `computeAlphaPrimary()` — angle between consecutive points
+3. `computeAlphaMean()` — averaged angles for smooth envelope joints
+4. `drawSegmentAxis()` — draw center line (back to front)
+5. `drawSegmentEnvelope()` — forward pass, end cap, reverse pass, start cap
+   - Each point offset by `alphaMean` at distance = pen width
+   - Serif endpoints use perpendicular endcaps
+6. Multiple passes with increasing offset for thick strokes (stepover-based)
+7. Output: `PointCollection` ready for G-Code generation
 
-Plain lines (no `Nxxxx` numbering) with:
+---
+
+## G-Code Engine
+
+### Preamble (GRBL Compatible)
+
+```gcode
+G21 G90 G17 G94 G54
+G91.1
+G00 Z6.50
+G00 X0.000 Y0.000
+```
+
+- `G21` — mm units
 - `G90` — absolute positioning
-- `F1000` — feed rate command inserted after `G90`
-- `G21` — millimeter units
-- `G00` — rapid move (idle)
-- `G01` — linear interpolation (working)
-- `M03` / `M05` — laser on/off (laser mode)
-- `M30` — program end
-- Decimal separator in output is `.`
+- `G17` — XY plane (required for G02/G03 arcs)
+- `G94` — feed rate in units/min
+- `G54` — work coordinate system
+- `G91.1` — incremental arc center (I/J relative to start)
 
-### Configuration (config.ini)
+### Z Coordinate Convention
+
+- Bottom of material = Z0.0 (lowest point)
+- Surface = Z(materialThickness)
+- Text engraving = Z(materialThickness − textDepth), clamped to min Z0
+- Frame cutting = Z0.0
+- Rapid travel = Z(materialThickness + safeHeight)
+
+### Feed Rate Management
+
+- `F{feedZ}` emitted on Z plunge moves (`G01 Z...`)
+- `F{feedXY}` emitted on first XY working move after each Z plunge
+- Feed rates sourced from active tool preset in `tools.ini`
+
+### Path Optimization Pipeline
+
+1. Scale to mm, remove duplicate points (< 0.003 mm)
+2. Compute turn angles at each interior point
+3. Split at sharp corners (> ~25°)
+4. **Greedy arc fit** — `fitCircle3()` through 3 points, extend while within tolerance (0.01 mm)
+5. Validate GRBL arc constraints (radius 0.05–100 mm, start/end radii within 0.1%)
+6. **Collinear reduction** — merge co-linear segments within 0.005 mm
+7. Emit `G01` for lines, `G02`/`G03` for arcs with `I`,`J` center offsets
+
+### Laser Mode
+
+When `laserMode = true`:
+- `M03` replaces Z plunge (spindle/laser on)
+- `M05` replaces Z retract (spindle/laser off)
+- No Z moves emitted
+
+### Epilog
+
+```gcode
+(Optimized: N moves (M arcs G2/G3, K lines G01) from P raw points (D duplicates removed))
+G00 Z6.50
+G00 X0.000 Y0.000
+M30
+```
+
+---
+
+## Configuration
+
+### Application Settings (config.ini)
 
 | Key | Description | Default |
 |-----|-------------|---------|
@@ -147,6 +239,8 @@ Plain lines (no `Nxxxx` numbering) with:
 | `export_safe_height` | Safe travel height [mm] | `5,00` |
 | `font_name` | Active LFF font name | `standard` |
 | `grid_visible` | Show grid in canvas | `1` |
+| `workspace_w` / `workspace_h` | Machine workspace dimensions [mm] | `300` / `200` |
+| `editor_width` | Editor panel width [px] | `345` |
 | `logwin_x/y/w/h` | Log window position/size | (auto) |
 
 ### Tool Presets (tools.ini)
@@ -160,17 +254,19 @@ Tool presets are stored in a separate `tools.ini` file (not `config.ini`). Forma
 | `tool_N_diameter` | Tool diameter [mm] | `0.200` |
 | `tool_N_stepover` | Tool stepover [mm] | `0.10` |
 | `tool_N_cutDepth` | Cut depth [mm] (negative) | `-0.100` |
-| `tool_N_safeHeight` | Safe travel height [mm] | `5.00` |
+| `tool_N_safeHeight` | Safe travel height [mm] | `1.00` |
 | `tool_N_feedXY` | XY feed rate [mm/min] | `300.0` |
 | `tool_N_feedZ` | Z feed rate [mm/min] | `100.0` |
 | `active_tool` | Active tool index | `0` |
 
-Default presets created automatically on first run: V-bits (60°/30°), end mills (0.8/1.0/2.0mm), drills (0.8/1.0mm), laser (0.1mm). WektoroweLitery2 primarily uses `diameter` and `stepover` fields for toolpath generation, and also uses `cutDepth` and `safeHeight` to auto-populate `export_text_depth` and `export_safe_height` when applying the active tool preset.
+Default presets created automatically on first run: V-bits (60°/30°), end mills (0.8/1.0/2.0 mm), drills (0.8/1.0 mm), laser (0.1 mm). Selecting a tool auto-populates diameter, stepover, text depth (from |cutDepth|) and safe Z fields.
+
+---
 
 ## Copilot Guidelines
 
 ### Adding New UI Components
-Create in `AppUI.cpp` → `createUI()`. Use `styleBtn()` helper for button styling. If accessed from other modules, declare `extern` in `AppState.h`.
+Create in `AppUI.cpp` → `createUI()`. Use `styleBtn()` helper for button styling. If accessed from other modules, declare `extern` in `AppState.h`. Call `doRelayout()` if component affects layout.
 
 ### Adding New Menu Commands
 Add via `menuBar->addMenu()` / `m.addItem()` in `MenuHandler.cpp`. Shared actions go in `AppState.h/.cpp` as `doXxx()` functions.
@@ -182,19 +278,40 @@ Add via `menuBar->addMenu()` / `m.addItem()` in `MenuHandler.cpp`. Shared action
 ### Extending Canvas Rendering
 Add drawing methods to `VectorCanvas` in `CanvasWindow.cpp`. Base canvas features (zoom/pan/grid/double-buffer) are inherited from JQB_WindowsLib `CanvasWindow`. World coordinates are in mm; use `toScreenX()`/`toScreenY()` for transforms.
 
-### Adding New Letter Formats
-Add new .lff font files to `resources/fonts/`. The LffFont parser handles them automatically.
+### Adding New Fonts
+Add `.lff` font files to `resources/fonts/`. The `LffFont` parser handles them automatically. `showFontPopup()` enumerates available fonts.
 
 ### Extending G-Code Output
-Add methods to `GCodeEngine` in `GCode/GCodeEngine.cpp`. Keep plain commands without `N` line numbering.
+Add methods to `GCodeEngine` in `GCode/GCodeEngine.cpp`. Keep plain commands without `N` line numbering. Arc fitting constants are in `GCodeEngine.h`.
 
 ### Font Files Path
-- LFF font files are loaded from `resources/fonts/` resolved relative to executable location.
-- Active font name is stored in `config.ini` as `font_name`.
-- Do not reintroduce manual folder selection in UI unless explicitly requested.
+- LFF font files loaded from `resources/fonts/` resolved relative to executable location.
+- Active font name stored in `config.ini` as `font_name`.
+- Post-build script `scripts/copy_fonts.py` copies fonts to output directory.
+
+### Editor Integration
+- `getEditorText()` / `setEditorText()` in `AppState.cpp` handle RichEdit content
+- `highlightEditorErrors(errorLines)` in `AppUI.cpp` applies red underline formatting
+- Auto-render debounce timer (300 ms) triggers `doRenderPreview()` on EN_CHANGE
 
 ### SimpleWindow is a Singleton
 Do not create a second one. For additional windows use `OverlayWindow` or raw WinAPI with `GWLP_USERDATA`.
 
 ### Logging
 Use `logMsg(const wchar_t*)` or `logMsg(const std::wstring&)` from `AppState.h`. Logs displayed in `LogWindow`.
+
+### Coordinate System
+- LFF font coordinates: 0–9 range (9 = uppercase height)
+- Internal units: scaled by `LFF_SCALE = 3000.0 / 9.0` (0–3000 range)
+- World coordinates: mm (after scaling by `900000.0 / textHeight_mm`)
+- Canvas: `toScreenX(worldX)` / `toScreenY(worldY)` — Y is flipped (0 at bottom)
+- G-Code: mm, Z0 = bottom of material
+
+---
+
+## Keeping Documentation Current
+
+When making changes to this project, **always update these files**:
+
+- **`.github/copilot-instructions.md`** (this file) — when adding/removing modules, changing data structures, adding config keys, modifying G-Code output format, adding UI components, or changing the architecture
+- **`README.md`** — when adding user-visible features, changing build instructions, or modifying the application workflow
