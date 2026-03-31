@@ -162,7 +162,7 @@ Tool presets are stored in a separate `tools.ini` file (not `config.ini`). Forma
 | `tool_N_feedZ` | Z feed rate [mm/min] | `100.0` |
 | `active_tool` | Active tool index | `0` |
 
-Default presets created automatically on first run: V-bits (60°/30°), end mills (0.8/1.0/2.0mm), drills (0.8/1.0mm), laser (0.1mm). WektoroweLitery2 primarily uses `diameter` and `stepover` fields.
+Default presets created automatically on first run: V-bits (60°/30°), end mills (0.8/1.0/2.0mm), drills (0.8/1.0mm), laser (0.1mm). WektoroweLitery2 primarily uses `diameter` and `stepover` fields for toolpath generation, and also uses `cutDepth` and `safeHeight` to auto-populate `export_text_depth` and `export_safe_height` when applying the active tool preset.
 
 ## Copilot Guidelines
 

@@ -147,6 +147,29 @@ void loadSettings() {
     // Load tool presets from tools.ini
     int toolCount = 0;
     try { toolCount = std::stoi(toolConfig.getValue("tool_count", "0")); } catch (...) {}
+
+    // One-time migration: if tools.ini has no presets, try to migrate legacy presets from config.ini
+    if (toolCount == 0) {
+        int legacyToolCount = 0;
+        try { legacyToolCount = std::stoi(config.getValue("tool_count", "0")); } catch (...) {}
+        if (legacyToolCount > 0) {
+            for (int i = 0; i < legacyToolCount; i++) {
+                std::string p = "tool_" + intToStr(i) + "_";
+                toolConfig.setValue(p + "name",       config.getValue(p + "name", "Tool " + intToStr(i)));
+                toolConfig.setValue(p + "diameter",   config.getValue(p + "diameter", "0,30"));
+                toolConfig.setValue(p + "stepover",   config.getValue(p + "stepover", "0,15"));
+                toolConfig.setValue(p + "cutDepth",   config.getValue(p + "cutDepth", "-0.100"));
+                toolConfig.setValue(p + "safeHeight", config.getValue(p + "safeHeight", "5.00"));
+                toolConfig.setValue(p + "feedXY",     config.getValue(p + "feedXY", "300.0"));
+                toolConfig.setValue(p + "feedZ",      config.getValue(p + "feedZ", "100.0"));
+            }
+            toolConfig.setValue("tool_count", intToStr(legacyToolCount));
+            toolConfig.setValue("active_tool", config.getValue("active_tool", "0"));
+            toolConfig.save();
+            toolCount = legacyToolCount;
+        }
+    }
+
     toolPresets.clear();
     if (toolCount > 0) {
         for (int i = 0; i < toolCount; i++) {

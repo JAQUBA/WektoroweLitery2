@@ -176,7 +176,7 @@ void createUI(SimpleWindow* win) {
 
     px += 113;
 
-    auto* lblSafe = new Label(px, y + 3, 48, 20, L"Safe Z:");
+    auto* lblSafe = new Label(px, y + 3, 48, 20, L"Safe H:");
     win->add(lblSafe);
     lblSafe->setFont(L"Segoe UI", 11, true);
     lblSafe->setTextColor(CLR_LABEL_TEXT);
