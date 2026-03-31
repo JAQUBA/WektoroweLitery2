@@ -499,6 +499,15 @@ void doExportGCode() {
     exportDoc.textDepth_mm = textDep;
     exportDoc.safeHeight_mm = safeH;
 
+    // Apply feed rates from active tool preset
+    if (activeToolIndex >= 0 && activeToolIndex < (int)toolPresets.size()) {
+        double fxy = 300.0, fz = 100.0;
+        tryParseDouble(toolPresets[activeToolIndex].feedXY, fxy);
+        tryParseDouble(toolPresets[activeToolIndex].feedZ, fz);
+        exportDoc.feedXY_mm = fxy;
+        exportDoc.feedZ_mm  = fz;
+    }
+
     // Log computed Z levels for verification
     {
         double zText = matThick - textDep;
