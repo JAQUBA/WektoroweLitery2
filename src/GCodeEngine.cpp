@@ -50,7 +50,6 @@ void GCodeEngine::appendLine(const std::string& content) {
 void GCodeEngine::prolog(double safeHeight) {
     appendLine("G21 G90 G17 G94 G54");
     appendLine("G91.1");   // incremental arc center mode (I/J relative to start)
-    appendLine("F1000");
 
     if (!m_laserMode) {
         appendLine("G00 Z" + fmtF2(safeHeight));
@@ -73,7 +72,7 @@ void GCodeEngine::epilog(double safeHeight) {
 void GCodeEngine::workingZ(double z) {
     char buf[64];
     if (!m_laserMode) {
-        std::snprintf(buf, sizeof(buf), "G01 Z%s", fmtF2(z).c_str());
+        std::snprintf(buf, sizeof(buf), "G01 Z%s F%s", fmtF2(z).c_str(), fmtF2(m_feedZ).c_str());
     } else {
         std::snprintf(buf, sizeof(buf), "M03");
     }
@@ -81,8 +80,13 @@ void GCodeEngine::workingZ(double z) {
 }
 
 void GCodeEngine::workingXY(double x, double y) {
-    char buf[64];
-    std::snprintf(buf, sizeof(buf), "G01 X%s Y%s", fmtF3(x).c_str(), fmtF3(y).c_str());
+    char buf[128];
+    if (m_needFeedXY) {
+        std::snprintf(buf, sizeof(buf), "G01 X%s Y%s F%s", fmtF3(x).c_str(), fmtF3(y).c_str(), fmtF2(m_feedXY).c_str());
+        m_needFeedXY = false;
+    } else {
+        std::snprintf(buf, sizeof(buf), "G01 X%s Y%s", fmtF3(x).c_str(), fmtF3(y).c_str());
+    }
     appendLine(buf);
 }
 
@@ -128,9 +132,12 @@ void GCodeEngine::exportSingleFrame(const std::string& fileName, const Document&
 void GCodeEngine::exportDocument(const std::string& fileName, const Document& doc) {
     init();
     m_laserMode = doc.laserMode;
+    m_feedXY = doc.feedXY_mm;
+    m_feedZ  = doc.feedZ_mm;
 
     double safeZ = doc.materialThickness_mm + doc.safeHeight_mm;
     double textZ = doc.materialThickness_mm - doc.textDepth_mm;
+    if (textZ < 0.0) textZ = 0.0;
     double cutZ  = 0.0;
 
     prolog(safeZ);
@@ -145,6 +152,7 @@ void GCodeEngine::exportDocument(const std::string& fileName, const Document& do
                 idleXY(plate.frameLeft_mm, plate.frameBottom_mm);
 
                 workingZ(cutZ);
+                m_needFeedXY = true;
 
                 workingXY(plate.frameLeft_mm, plate.frameBottom_mm + plate.frameHeight_mm);
                 workingXY(plate.frameLeft_mm + plate.frameWidth_mm,
@@ -166,6 +174,7 @@ void GCodeEngine::exportDocument(const std::string& fileName, const Document& do
 
                     if (segment.size() > 1) {
                         workingZ(textZ);
+                        m_needFeedXY = true;
 
                         auto moves = optimizePath(segment, scale);
                         emitOptimizedPath(moves);
@@ -472,20 +481,27 @@ std::vector<GCodeMove> GCodeEngine::optimizePath(const PointCollection& rawPoint
 void GCodeEngine::emitOptimizedPath(const std::vector<GCodeMove>& moves) {
     char buf[128];
     for (const auto& m : moves) {
+        const char* fSuffix = "";
+        std::string fStr;
+        if (m_needFeedXY) {
+            fStr = " F" + fmtF2(m_feedXY);
+            fSuffix = fStr.c_str();
+            m_needFeedXY = false;
+        }
         switch (m.type) {
         case GCodeMove::LINE:
-            std::snprintf(buf, sizeof(buf), "G01 X%s Y%s",
-                          fmtF3(m.x).c_str(), fmtF3(m.y).c_str());
+            std::snprintf(buf, sizeof(buf), "G01 X%s Y%s%s",
+                          fmtF3(m.x).c_str(), fmtF3(m.y).c_str(), fSuffix);
             break;
         case GCodeMove::ARC_CW:
-            std::snprintf(buf, sizeof(buf), "G02 X%s Y%s I%s J%s",
+            std::snprintf(buf, sizeof(buf), "G02 X%s Y%s I%s J%s%s",
                           fmtF3(m.x).c_str(), fmtF3(m.y).c_str(),
-                          fmtF3(m.ci).c_str(), fmtF3(m.cj).c_str());
+                          fmtF3(m.ci).c_str(), fmtF3(m.cj).c_str(), fSuffix);
             break;
         case GCodeMove::ARC_CCW:
-            std::snprintf(buf, sizeof(buf), "G03 X%s Y%s I%s J%s",
+            std::snprintf(buf, sizeof(buf), "G03 X%s Y%s I%s J%s%s",
                           fmtF3(m.x).c_str(), fmtF3(m.y).c_str(),
-                          fmtF3(m.ci).c_str(), fmtF3(m.cj).c_str());
+                          fmtF3(m.ci).c_str(), fmtF3(m.cj).c_str(), fSuffix);
             break;
         }
         appendLine(buf);

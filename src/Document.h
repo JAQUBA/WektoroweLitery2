@@ -14,6 +14,8 @@ public:
     double materialThickness_mm = 0.0;
     double textDepth_mm = 0.0;
     double safeHeight_mm = 5.0;
+    double feedXY_mm = 300.0;
+    double feedZ_mm = 100.0;
     bool laserMode = false;
 
     Document() = default;

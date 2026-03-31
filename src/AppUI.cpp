@@ -182,11 +182,11 @@ void createUI(SimpleWindow* win) {
     lblSafe->setTextColor(CLR_LABEL_TEXT);
     lblSafe->setBackColor(CLR_WIN_BG);
 
-    fldSafeH = new InputField(px + 51, y, 55, 24, exportSafeHeight.c_str(),
+    fldSafeZ = new InputField(px + 51, y, 55, 24, exportSafeHeight.c_str(),
         [](InputField* f, const char* text) {
             exportSafeHeight = text;
         });
-    win->add(fldSafeH);
+    win->add(fldSafeZ);
 
     y += 30;
 

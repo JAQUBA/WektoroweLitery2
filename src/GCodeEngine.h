@@ -44,6 +44,9 @@ public:
 private:
     std::ostringstream m_buffer;
     bool m_laserMode = false;
+    double m_feedXY = 300.0;
+    double m_feedZ  = 100.0;
+    bool m_needFeedXY = true;   // emit F on first working XY move after Z plunge
 
     // Optimization statistics
     int m_totalRawPoints = 0;

@@ -24,6 +24,11 @@ struct ToolPreset {
     std::string name;
     std::string diameter;
     std::string stepover;
+    // Additional fields (shared tools.ini compatibility)
+    std::string cutDepth;
+    std::string safeHeight;
+    std::string feedXY;
+    std::string feedZ;
 };
 
 // ============================================================================
@@ -41,7 +46,7 @@ class InputField;
 // Material parameter input fields (visible in toolbar)
 extern InputField*     fldMaterial;
 extern InputField*     fldDepth;
-extern InputField*     fldSafeH;
+extern InputField*     fldSafeZ;
 
 // ============================================================================
 // Application objects

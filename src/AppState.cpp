@@ -33,7 +33,7 @@ HWND           hEditor      = nullptr;
 
 InputField*    fldMaterial  = nullptr;
 InputField*    fldDepth     = nullptr;
-InputField*    fldSafeH     = nullptr;
+InputField*    fldSafeZ     = nullptr;
 
 ConfigManager  config("config.ini");
 Document*      currentDocument = nullptr;
@@ -58,6 +58,8 @@ int            editorWidth     = 345;
 
 std::vector<ToolPreset> toolPresets;
 int            activeToolIndex = 0;
+
+static ConfigManager toolConfig("tools.ini");
 
 static bool fileExists(const std::string& path) {
     DWORD attrs = GetFileAttributesA(path.c_str());
@@ -142,26 +144,72 @@ void loadSettings() {
     lastOutputDir = config.getValue("last_output_dir", "");
     gridVisible   = config.getValue("grid_visible", "1") == "1";
 
-    // Load tool presets
+    // Load tool presets from tools.ini
     int toolCount = 0;
-    try { toolCount = std::stoi(config.getValue("tool_count", "0")); } catch (...) {}
+    try { toolCount = std::stoi(toolConfig.getValue("tool_count", "0")); } catch (...) {}
+
+    // One-time migration: if tools.ini has no presets, try to migrate legacy presets from config.ini
+    if (toolCount == 0) {
+        int legacyToolCount = 0;
+        try { legacyToolCount = std::stoi(config.getValue("tool_count", "0")); } catch (...) {}
+        if (legacyToolCount > 0) {
+            for (int i = 0; i < legacyToolCount; i++) {
+                std::string p = "tool_" + intToStr(i) + "_";
+                toolConfig.setValue(p + "name",       config.getValue(p + "name", "Tool " + intToStr(i)));
+                toolConfig.setValue(p + "diameter",   config.getValue(p + "diameter", "0,30"));
+                toolConfig.setValue(p + "stepover",   config.getValue(p + "stepover", "0,15"));
+                toolConfig.setValue(p + "cutDepth",   config.getValue(p + "cutDepth", "-0.100"));
+                toolConfig.setValue(p + "safeHeight", config.getValue(p + "safeHeight", "5.00"));
+                toolConfig.setValue(p + "feedXY",     config.getValue(p + "feedXY", "300.0"));
+                toolConfig.setValue(p + "feedZ",      config.getValue(p + "feedZ", "100.0"));
+            }
+            toolConfig.setValue("tool_count", intToStr(legacyToolCount));
+            toolConfig.setValue("active_tool", config.getValue("active_tool", "0"));
+            toolConfig.save();
+            toolCount = legacyToolCount;
+        }
+    }
+
     toolPresets.clear();
     if (toolCount > 0) {
         for (int i = 0; i < toolCount; i++) {
             std::string p = "tool_" + intToStr(i) + "_";
             ToolPreset tp;
-            tp.name = config.getValue(p + "name", "Tool " + intToStr(i));
-            tp.diameter = config.getValue(p + "diameter", "0,30");
-            tp.stepover = config.getValue(p + "stepover", "0,15");
+            tp.name = toolConfig.getValue(p + "name", "Tool " + intToStr(i));
+            tp.diameter = toolConfig.getValue(p + "diameter", "0,30");
+            tp.stepover = toolConfig.getValue(p + "stepover", "0,15");
+            tp.cutDepth = toolConfig.getValue(p + "cutDepth", "-0.100");
+            tp.safeHeight = toolConfig.getValue(p + "safeHeight", "5.00");
+            tp.feedXY = toolConfig.getValue(p + "feedXY", "300.0");
+            tp.feedZ = toolConfig.getValue(p + "feedZ", "100.0");
             toolPresets.push_back(tp);
         }
     } else {
         // Default presets
-        toolPresets.push_back({"V-bit 0.3mm", "0,30", "0,15"});
-        toolPresets.push_back({"V-bit 0.2mm", "0,20", "0,10"});
-        toolPresets.push_back({"Laser 0.1mm", "0,10", "0,05"});
+        toolPresets.push_back({"V-bit 60deg 0.2mm", "0.200", "0.10", "-0.100", "1.00", "300.0", "100.0"});
+        toolPresets.push_back({"V-bit 60deg 0.1mm", "0.100", "0.05", "-0.050", "1.00", "200.0", "50.0"});
+        toolPresets.push_back({"V-bit 30deg 0.1mm", "0.100", "0.05", "-0.080", "1.00", "250.0", "80.0"});
+        toolPresets.push_back({"End mill 0.8mm",    "0.800", "0.40", "-0.150", "2.00", "400.0", "100.0"});
+        toolPresets.push_back({"End mill 1.0mm",    "1.000", "0.50", "-0.200", "2.00", "400.0", "100.0"});
+        toolPresets.push_back({"End mill 2.0mm",    "2.000", "1.00", "-0.500", "2.00", "500.0", "150.0"});
+        toolPresets.push_back({"Drill 0.8mm",       "0.800", "0.40", "-1.800", "2.00", "300.0", "50.0"});
+        toolPresets.push_back({"Drill 1.0mm",       "1.000", "0.50", "-1.800", "2.00", "300.0", "50.0"});
+        toolPresets.push_back({"Laser 0.1mm",       "0.100", "0.05", "0.000",  "1.00", "1000.0", "500.0"});
+        // Save defaults to tools.ini
+        toolConfig.setValue("tool_count", intToStr((int)toolPresets.size()));
+        for (int i = 0; i < (int)toolPresets.size(); i++) {
+            std::string p = "tool_" + intToStr(i) + "_";
+            toolConfig.setValue(p + "name", toolPresets[i].name);
+            toolConfig.setValue(p + "diameter", toolPresets[i].diameter);
+            toolConfig.setValue(p + "stepover", toolPresets[i].stepover);
+            toolConfig.setValue(p + "cutDepth", toolPresets[i].cutDepth);
+            toolConfig.setValue(p + "safeHeight", toolPresets[i].safeHeight);
+            toolConfig.setValue(p + "feedXY", toolPresets[i].feedXY);
+            toolConfig.setValue(p + "feedZ", toolPresets[i].feedZ);
+        }
+        toolConfig.setValue("active_tool", "0");
     }
-    try { activeToolIndex = std::stoi(config.getValue("active_tool", "0")); } catch (...) { activeToolIndex = 0; }
+    try { activeToolIndex = std::stoi(toolConfig.getValue("active_tool", "0")); } catch (...) { activeToolIndex = 0; }
     if (activeToolIndex < 0 || activeToolIndex >= (int)toolPresets.size())
         activeToolIndex = 0;
     applyActiveToolPreset();
@@ -192,15 +240,19 @@ void saveSettings() {
     config.setValue("grid_visible", gridVisible ? "1" : "0");
     config.setValue("font_name", activeFontName);
 
-    // Save tool presets
-    config.setValue("tool_count", intToStr((int)toolPresets.size()));
+    // Save tool presets to tools.ini
+    toolConfig.setValue("tool_count", intToStr((int)toolPresets.size()));
     for (int i = 0; i < (int)toolPresets.size(); i++) {
         std::string p = "tool_" + intToStr(i) + "_";
-        config.setValue(p + "name", toolPresets[i].name);
-        config.setValue(p + "diameter", toolPresets[i].diameter);
-        config.setValue(p + "stepover", toolPresets[i].stepover);
+        toolConfig.setValue(p + "name", toolPresets[i].name);
+        toolConfig.setValue(p + "diameter", toolPresets[i].diameter);
+        toolConfig.setValue(p + "stepover", toolPresets[i].stepover);
+        toolConfig.setValue(p + "cutDepth", toolPresets[i].cutDepth);
+        toolConfig.setValue(p + "safeHeight", toolPresets[i].safeHeight);
+        toolConfig.setValue(p + "feedXY", toolPresets[i].feedXY);
+        toolConfig.setValue(p + "feedZ", toolPresets[i].feedZ);
     }
-    config.setValue("active_tool", intToStr(activeToolIndex));
+    toolConfig.setValue("active_tool", intToStr(activeToolIndex));
 
     // Save material parameters
     config.setValue("export_material_thickness", exportMaterialThickness);
@@ -470,6 +522,15 @@ void doExportGCode() {
     exportDoc.textDepth_mm = textDep;
     exportDoc.safeHeight_mm = safeH;
 
+    // Apply feed rates from active tool preset
+    if (activeToolIndex >= 0 && activeToolIndex < (int)toolPresets.size()) {
+        double fxy = 300.0, fz = 100.0;
+        tryParseDouble(toolPresets[activeToolIndex].feedXY, fxy);
+        tryParseDouble(toolPresets[activeToolIndex].feedZ, fz);
+        exportDoc.feedXY_mm = fxy;
+        exportDoc.feedZ_mm  = fz;
+    }
+
     // Log computed Z levels for verification
     {
         double zText = matThick - textDep;
@@ -554,6 +615,18 @@ void applyActiveToolPreset() {
         const auto& tp = toolPresets[activeToolIndex];
         exportDiameter = tp.diameter;
         exportStepover = tp.stepover;
+
+        // Auto-populate cut depth (absolute value) and safe Z from tool preset
+        double d = 0;
+        if (tryParseDouble(tp.cutDepth, d)) {
+            if (d < 0) d = -d;
+            char buf[32];
+            _snprintf(buf, 32, "%.3f", d);
+            exportTextDepth = buf;
+            if (fldDepth) fldDepth->setText(buf);
+        }
+        exportSafeHeight = tp.safeHeight;
+        if (fldSafeZ) fldSafeZ->setText(tp.safeHeight.c_str());
     }
 }
 
@@ -572,6 +645,10 @@ static HWND s_hToolList = nullptr;
 static HWND s_hToolName = nullptr;
 static HWND s_hToolDia = nullptr;
 static HWND s_hToolStep = nullptr;
+static HWND s_hToolDepth = nullptr;
+static HWND s_hToolSafeZ = nullptr;
+static HWND s_hToolFeedXY = nullptr;
+static HWND s_hToolFeedZ = nullptr;
 static int  s_toolDlgSel = -1;
 
 static void toolDlgPopulateFields(int idx) {
@@ -579,12 +656,20 @@ static void toolDlgPopulateFields(int idx) {
         SetWindowTextW(s_hToolName, L"");
         SetWindowTextW(s_hToolDia, L"");
         SetWindowTextW(s_hToolStep, L"");
+        SetWindowTextW(s_hToolDepth, L"");
+        SetWindowTextW(s_hToolSafeZ, L"");
+        SetWindowTextW(s_hToolFeedXY, L"");
+        SetWindowTextW(s_hToolFeedZ, L"");
         return;
     }
     const auto& tp = toolPresets[idx];
     SetWindowTextW(s_hToolName, StringUtils::utf8ToWide(tp.name).c_str());
     SetWindowTextW(s_hToolDia, StringUtils::utf8ToWide(tp.diameter).c_str());
     SetWindowTextW(s_hToolStep, StringUtils::utf8ToWide(tp.stepover).c_str());
+    SetWindowTextW(s_hToolDepth, StringUtils::utf8ToWide(tp.cutDepth).c_str());
+    SetWindowTextW(s_hToolSafeZ, StringUtils::utf8ToWide(tp.safeHeight).c_str());
+    SetWindowTextW(s_hToolFeedXY, StringUtils::utf8ToWide(tp.feedXY).c_str());
+    SetWindowTextW(s_hToolFeedZ, StringUtils::utf8ToWide(tp.feedZ).c_str());
 }
 
 static void toolDlgSaveFields(int idx) {
@@ -594,6 +679,10 @@ static void toolDlgSaveFields(int idx) {
     GetWindowTextW(s_hToolName, buf, 128); tp.name = StringUtils::wideToUtf8(buf);
     GetWindowTextW(s_hToolDia, buf, 128); tp.diameter = StringUtils::wideToUtf8(buf);
     GetWindowTextW(s_hToolStep, buf, 128); tp.stepover = StringUtils::wideToUtf8(buf);
+    GetWindowTextW(s_hToolDepth, buf, 128); tp.cutDepth = StringUtils::wideToUtf8(buf);
+    GetWindowTextW(s_hToolSafeZ, buf, 128); tp.safeHeight = StringUtils::wideToUtf8(buf);
+    GetWindowTextW(s_hToolFeedXY, buf, 128); tp.feedXY = StringUtils::wideToUtf8(buf);
+    GetWindowTextW(s_hToolFeedZ, buf, 128); tp.feedZ = StringUtils::wideToUtf8(buf);
 }
 
 static void toolDlgRefreshList(int selectIdx = -1) {
@@ -610,16 +699,16 @@ static LRESULT CALLBACK ToolPresetsDlgProc(
     HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_CREATE: {
-            int lbW = 170, lbH = 120;
-            int fieldX = 200, fieldW = 220;
-            int labelW = 70;
+            int lbW = 170, lbH = 210;
+            int fieldX = 200, fieldW = 260;
+            int labelW = 85;
 
             s_hToolList = CreateWindowExW(WS_EX_CLIENTEDGE, L"LISTBOX", L"",
                 WS_CHILD | WS_VISIBLE | WS_VSCROLL | LBS_NOTIFY,
                 15, 15, lbW, lbH, hwnd, (HMENU)100, _core.hInstance, NULL);
 
             auto addField = [&](int row, const wchar_t* label, HWND& hEdit, int id) {
-                int y = 15 + row * 32;
+                int y = 15 + row * 30;
                 CreateWindowExW(0, L"STATIC", label, WS_CHILD | WS_VISIBLE,
                     fieldX, y + 2, labelW, 20, hwnd, NULL, _core.hInstance, NULL);
                 hEdit = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"",
@@ -628,18 +717,22 @@ static LRESULT CALLBACK ToolPresetsDlgProc(
                     hwnd, (HMENU)(UINT_PTR)id, _core.hInstance, NULL);
             };
 
-            addField(0, L"Name:", s_hToolName, 101);
-            addField(1, L"Diameter:", s_hToolDia, 102);
-            addField(2, L"Stepover:", s_hToolStep, 103);
+            addField(0, L"Name:",        s_hToolName,   101);
+            addField(1, L"Diameter:",     s_hToolDia,    102);
+            addField(2, L"Stepover:",     s_hToolStep,   103);
+            addField(3, L"Cut depth:",    s_hToolDepth,  104);
+            addField(4, L"Safe Z:",       s_hToolSafeZ,  105);
+            addField(5, L"Feed XY:",      s_hToolFeedXY, 106);
+            addField(6, L"Feed Z:",       s_hToolFeedZ,  107);
 
             CreateWindowExW(0, L"BUTTON", L"Add", WS_CHILD | WS_VISIBLE,
-                15, 135, 80, 28, hwnd, (HMENU)110, _core.hInstance, NULL);
+                15, lbH + 20, 80, 28, hwnd, (HMENU)110, _core.hInstance, NULL);
             CreateWindowExW(0, L"BUTTON", L"Remove", WS_CHILD | WS_VISIBLE,
-                105, 135, 80, 28, hwnd, (HMENU)111, _core.hInstance, NULL);
+                105, lbH + 20, 80, 28, hwnd, (HMENU)111, _core.hInstance, NULL);
             CreateWindowExW(0, L"BUTTON", L"Save", WS_CHILD | WS_VISIBLE,
-                fieldX, 15 + 3 * 32, 80, 28, hwnd, (HMENU)112, _core.hInstance, NULL);
+                fieldX, 15 + 7 * 30, 80, 28, hwnd, (HMENU)112, _core.hInstance, NULL);
             CreateWindowExW(0, L"BUTTON", L"Close", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
-                180, 175, 80, 28, hwnd, (HMENU)113, _core.hInstance, NULL);
+                fieldX + 90, 15 + 7 * 30, 80, 28, hwnd, (HMENU)113, _core.hInstance, NULL);
 
             toolDlgRefreshList(activeToolIndex);
             s_toolDlgSel = activeToolIndex;
@@ -673,8 +766,12 @@ static LRESULT CALLBACK ToolPresetsDlgProc(
                     if (s_toolDlgSel >= 0) toolDlgSaveFields(s_toolDlgSel);
                     ToolPreset newTp;
                     newTp.name = "New Tool";
-                    newTp.diameter = "0,30";
-                    newTp.stepover = "0,15";
+                    newTp.diameter = "0.200";
+                    newTp.stepover = "0.10";
+                    newTp.cutDepth = "-0.100";
+                    newTp.safeHeight = "5.00";
+                    newTp.feedXY = "300.0";
+                    newTp.feedZ = "100.0";
                     toolPresets.push_back(newTp);
                     int newIdx = (int)toolPresets.size() - 1;
                     toolDlgRefreshList(newIdx);
@@ -750,13 +847,13 @@ void doShowToolPresets() {
 
     RECT parentRect;
     GetWindowRect(window->getHandle(), &parentRect);
-    int cx = (parentRect.left + parentRect.right) / 2 - 225;
-    int cy = (parentRect.top + parentRect.bottom) / 2 - 165;
+    int cx = (parentRect.left + parentRect.right) / 2 - 260;
+    int cy = (parentRect.top + parentRect.bottom) / 2 - 170;
 
     CreateWindowExW(WS_EX_DLGMODALFRAME,
         L"WL2_ToolPresetsDlg", L"Tool Presets",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_VISIBLE,
-        cx, cy, 450, 240,
+        cx, cy, 520, 340,
         window->getHandle(), NULL, _core.hInstance, NULL);
 }
 
