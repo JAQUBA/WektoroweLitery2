@@ -137,6 +137,7 @@ void GCodeEngine::exportDocument(const std::string& fileName, const Document& do
 
     double safeZ = doc.materialThickness_mm + doc.safeHeight_mm;
     double textZ = doc.materialThickness_mm - doc.textDepth_mm;
+    if (textZ < 0.0) textZ = 0.0;
     double cutZ  = 0.0;
 
     prolog(safeZ);
