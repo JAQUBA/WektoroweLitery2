@@ -5,10 +5,8 @@
 #include <cmath>
 #include <windows.h>
 
-static bool fileExistsA(const std::string& path) {
-    DWORD attrs = GetFileAttributesA(path.c_str());
-    return attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
-}
+// Scale factor: LFF height (9 units) → internal units (3000)
+static const double LFF_SCALE = 3000.0 / 9.0;
 
 // Convert UTF-8 string to vector of Unicode code points
 static std::vector<int> utf8ToCodePoints(const std::string& utf8) {
@@ -40,12 +38,16 @@ static std::vector<int> utf8ToCodePoints(const std::string& utf8) {
     return codePoints;
 }
 
-void Nameplate::appendText(const std::string& txt, const std::string& csvDir) {
+void Nameplate::appendText(const std::string& txt, const LffFont& font) {
     m_frameCenterX_mm = (frameLeft_mm + frameWidth_mm) / 2.0;
     m_frameCenterY_mm = (frameBottom_mm + frameHeight_mm) / 2.0;
 
     m_cursorX = frameLeft_mm * (SHIFT_Y_BASE / textHeight_mm);
     text = txt;
+
+    // Spacing from LFF font (scaled to internal units)
+    double letterSpacing = font.getLetterSpacing() * LFF_SCALE;
+    double wordSpacing = font.getWordSpacing() * LFF_SCALE;
 
     auto codePoints = utf8ToCodePoints(txt);
     int charCount = static_cast<int>(codePoints.size());
@@ -55,23 +57,22 @@ void Nameplate::appendText(const std::string& txt, const std::string& csvDir) {
 
         if (cp == ' ') {
             m_letters.push_back(VectorLetterEngine());
-            m_advanceX = SPACE_WIDTH * condensation;
+            m_advanceX = wordSpacing * condensation;
         } else {
-            std::string charCode = std::to_string(cp);
-            std::string csvPath = csvDir + charCode + ".csv";
+            const LffGlyph* glyph = font.getGlyph(cp);
 
-            if (fileExistsA(csvPath)) {
+            if (glyph && !glyph->strokes.empty()) {
                 m_letters.push_back(VectorLetterEngine(
-                    csvPath, ';', 1.0,
+                    *glyph, 1.0,
                     900000.0 / textHeight_mm,
                     textHeight_mm, thickness, diameter, stepover));
 
                 m_letters[i].multiplyX(condensation);
                 m_advanceX = m_letters[i].maxX * condensation;
             } else {
-                // Keep layout stable even if a glyph file is missing.
+                // Keep layout stable even if a glyph is missing.
                 m_letters.push_back(VectorLetterEngine());
-                m_advanceX = SPACE_WIDTH * condensation;
+                m_advanceX = wordSpacing * condensation;
             }
 
             // Shift letter segments to current cursor position
@@ -83,10 +84,10 @@ void Nameplate::appendText(const std::string& txt, const std::string& csvDir) {
                 }
             }
         }
-        m_cursorX += m_advanceX + (SPACE_WIDTH * condensation);
+        m_cursorX += m_advanceX + (letterSpacing * condensation);
     }
 
-    m_cursorX -= (SPACE_WIDTH * condensation);
+    m_cursorX -= (letterSpacing * condensation);
 
     // Center text within frame
     m_textWidth_mm = (m_cursorX / (SHIFT_Y_BASE / textHeight_mm)) / 2.0;

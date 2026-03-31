@@ -57,7 +57,7 @@ static void stripUtf8BOM(std::string& s) {
 
 // --- Shared parsing logic (works on any std::istream) ---
 static Document parseStreamImpl(std::istream& input,
-                                const std::string& csvDir,
+                                const LffFont& font,
                                 double diameter,
                                 double stepover,
                                 std::vector<int>* errorLines = nullptr) {
@@ -139,7 +139,7 @@ static Document parseStreamImpl(std::istream& input,
                     currentPlate.frameHeight_mm = frameH;
                 }
 
-                currentPlate.appendText(text, csvDir);
+                currentPlate.appendText(text, font);
                 currentRow.addNameplate(currentPlate);
                 break;
             }
@@ -176,19 +176,19 @@ static Document parseStreamImpl(std::istream& input,
 // --- Public API ---
 
 Document DocumentParser::parseFile(const std::string& fileName,
-                                    const std::string& csvDir,
+                                    const LffFont& font,
                                     double diameter,
                                     double stepover) {
     std::ifstream file(fileName);
     if (!file.is_open()) return Document();
-    return parseStreamImpl(file, csvDir, diameter, stepover, nullptr);
+    return parseStreamImpl(file, font, diameter, stepover, nullptr);
 }
 
 Document DocumentParser::parseString(const std::string& content,
-                                      const std::string& csvDir,
+                                      const LffFont& font,
                                       double diameter,
                                       double stepover,
                                       std::vector<int>* errorLines) {
     std::istringstream stream(content);
-    return parseStreamImpl(stream, csvDir, diameter, stepover, errorLines);
+    return parseStreamImpl(stream, font, diameter, stepover, errorLines);
 }

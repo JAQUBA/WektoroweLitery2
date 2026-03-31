@@ -21,7 +21,7 @@ def copy_fonts_to_build(source, target, env):
         shutil.rmtree(dst_fonts)
 
     shutil.copytree(src_fonts, dst_fonts)
-    csv_count = len([f for f in os.listdir(dst_fonts) if f.endswith(".csv")])
-    print(f"[copy_fonts] Copied {csv_count} font files to {dst_fonts}")
+    lff_count = len([f for f in os.listdir(dst_fonts) if f.endswith(".lff")])
+    print(f"[copy_fonts] Copied {lff_count} font files to {dst_fonts}")
 
 env.AddPostAction("buildprog", copy_fonts_to_build)

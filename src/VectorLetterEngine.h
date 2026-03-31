@@ -5,6 +5,7 @@
 #define VECTOR_LETTER_ENGINE_H
 
 #include "VectorPoint.h"
+#include "LffFont.h"
 #include <vector>
 #include <string>
 
@@ -30,7 +31,14 @@ public:
                        double height = 5.0, double thickness = 10.0,
                        double diameter = 0.3, double stepover = 0.25);
 
+    // LFF font glyph constructor
+    VectorLetterEngine(const LffGlyph& glyph,
+                       double scale = 1.0, double yScreenOffset = 3500.0,
+                       double height = 5.0, double thickness = 10.0,
+                       double diameter = 0.3, double stepover = 0.25);
+
     void importFromCSV(const std::string& fileName, char separator = ';');
+    void importFromLff(const LffGlyph& glyph);
     void exportToCSV(const std::string& fileName, char separator = ';');
     void generateFullPath();
 

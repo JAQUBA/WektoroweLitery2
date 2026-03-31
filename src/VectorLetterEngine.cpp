@@ -2,6 +2,7 @@
 // VectorLetterEngine.cpp — Vector letter engine implementation
 // ============================================================================
 #include "VectorLetterEngine.h"
+#include "LffFont.h"
 #include <fstream>
 #include <sstream>
 #include <cmath>
@@ -122,6 +123,16 @@ static inline void addPointIfNotTerminator(PointCollection& points, double xb, d
 }
 
 // ============================================================================
+// Helper: clamp envelope width factor to prevent blowup on arc curves
+// ============================================================================
+static inline double clampedEnvelopeFactor(double pw, double alphaP) {
+    double ca = std::cos(alphaP);
+    // Clamp to avoid division by near-zero (max factor ~2.0, i.e. 60° difference)
+    if (std::fabs(ca) < 0.5) ca = (ca >= 0.0) ? 0.5 : -0.5;
+    return pw / ca;
+}
+
+// ============================================================================
 // Draw segment envelope (forward + endcap + reverse + startcap)
 // ============================================================================
 void VectorLetterEngine::drawSegmentEnvelope(PointCollection& points,
@@ -134,8 +145,9 @@ void VectorLetterEngine::drawSegmentEnvelope(PointCollection& points,
     for (int i = 0; i <= lastIdx; i++) {
         alpha = data[i].alphaMean;
         alphaP = std::abs(data[i].alphaMean - data[i].alphaPrimary);
-        m_xb = data[i].x + (std::cos(alpha) * pw / std::cos(alphaP));
-        m_yb = data[i].y + (std::sin(alpha) * pw / std::cos(alphaP));
+        double ewf = clampedEnvelopeFactor(pw, alphaP);
+        m_xb = data[i].x + (std::cos(alpha) * ewf);
+        m_yb = data[i].y + (std::sin(alpha) * ewf);
         points.push_back(Point2D(m_xb * m_scale, m_yb * m_scale));
     }
 
@@ -179,8 +191,9 @@ void VectorLetterEngine::drawSegmentEnvelope(PointCollection& points,
         }
     } else {
         alpha = data[lastIdx].alphaMean;
-        dx = std::cos(alpha) * pw / std::cos(alphaP);
-        dy = std::sin(alpha) * pw / std::cos(alphaP);
+        double ewfEnd = clampedEnvelopeFactor(pw, alphaP);
+        dx = std::cos(alpha) * ewfEnd;
+        dy = std::sin(alpha) * ewfEnd;
 
         // perpendicular
         py = dx * -1.0;
@@ -203,8 +216,9 @@ void VectorLetterEngine::drawSegmentEnvelope(PointCollection& points,
         alpha = (alpha > M_PI) ? alpha - M_PI : alpha + M_PI;
 
         alphaP = std::abs(data[i].alphaMean - data[i].alphaPrimary);
-        m_xb = data[i].x + (std::cos(alpha) * pw / std::cos(alphaP));
-        m_yb = data[i].y + (std::sin(alpha) * pw / std::cos(alphaP));
+        double ewfRev = clampedEnvelopeFactor(pw, alphaP);
+        m_xb = data[i].x + (std::cos(alpha) * ewfRev);
+        m_yb = data[i].y + (std::sin(alpha) * ewfRev);
         points.push_back(Point2D(m_xb * m_scale, m_yb * m_scale));
     }
 
@@ -261,8 +275,9 @@ void VectorLetterEngine::drawSegmentEnvelope(PointCollection& points,
         alpha = data[0].alphaMean;
         alpha = (alpha > M_PI) ? alpha - M_PI : alpha + M_PI;
 
-        dx = std::cos(alpha) * pw / std::cos(alphaP);
-        dy = std::sin(alpha) * pw / std::cos(alphaP);
+        double ewfStart = clampedEnvelopeFactor(pw, alphaP);
+        dx = std::cos(alpha) * ewfStart;
+        dy = std::sin(alpha) * ewfStart;
 
         // perpendicular
         py = dx * -1.0;
@@ -452,4 +467,142 @@ void VectorLetterEngine::addY(double n) {
     for (auto& seg : segments)
         for (auto& pt : seg)
             pt.y += n;
+}
+
+// ============================================================================
+// LFF Font Glyph Constructor
+// ============================================================================
+VectorLetterEngine::VectorLetterEngine(const LffGlyph& glyph,
+                                       double scale, double yScreenOffset,
+                                       double height, double thickness,
+                                       double diameter, double stepover)
+{
+    m_yScreenOffset = yScreenOffset;
+    m_scale = scale;
+    m_thickness = static_cast<int>(thickness * 30.0);
+    m_diameter = static_cast<int>(diameter * 3000.0 / height);
+    m_stepover = static_cast<int>(stepover * 3000.0 / height);
+    importFromLff(glyph);
+}
+
+// ============================================================================
+// Arc tessellation helper for LFF bulge arcs
+// ============================================================================
+static void tessellateArc(double x1, double y1,
+                          double x2, double y2,
+                          double bulge,
+                          std::vector<VectorPoint>& output) {
+    static const double PI = 3.14159265358979323846;
+
+    double dx = x2 - x1;
+    double dy = y2 - y1;
+    double chord = std::sqrt(dx * dx + dy * dy);
+    if (chord < 1e-10) return;
+
+    // Included angle and radius
+    double alpha = 4.0 * std::atan(std::fabs(bulge));
+    double sinHalfAlpha = std::sin(alpha / 2.0);
+    if (std::fabs(sinHalfAlpha) < 1e-10) return;
+    double r = chord / (2.0 * sinHalfAlpha);
+
+    // Unit vector P1→P2
+    double ux = dx / chord;
+    double uy = dy / chord;
+
+    // Perpendicular (90° CCW = left of direction)
+    double px = -uy;
+    double py = ux;
+
+    // Midpoint of chord
+    double mx = (x1 + x2) / 2.0;
+    double my = (y1 + y2) / 2.0;
+
+    // Distance from midpoint to center along perpendicular
+    double d = r * std::cos(alpha / 2.0);
+
+    // Center of arc
+    double cx, cy;
+    if (bulge > 0) {
+        cx = mx + d * px;
+        cy = my + d * py;
+    } else {
+        cx = mx - d * px;
+        cy = my - d * py;
+    }
+
+    // Start and end angles from center
+    double a1 = std::atan2(y1 - cy, x1 - cx);
+    double a2 = std::atan2(y2 - cy, x2 - cx);
+
+    // Sweep direction
+    double sweep;
+    if (bulge > 0) {
+        // CCW: sweep should be positive
+        sweep = a2 - a1;
+        if (sweep <= 0) sweep += 2.0 * PI;
+    } else {
+        // CW: sweep should be negative
+        sweep = a2 - a1;
+        if (sweep >= 0) sweep -= 2.0 * PI;
+    }
+
+    // Number of intermediate points (more for larger arcs)
+    int numSegs = std::max(4, static_cast<int>(std::fabs(alpha) * 6.0 / PI));
+
+    for (int i = 1; i < numSegs; i++) {
+        double t = static_cast<double>(i) / numSegs;
+        double angle = a1 + sweep * t;
+        VectorPoint vp;
+        vp.x = cx + r * std::cos(angle);
+        vp.y = cy + r * std::sin(angle);
+        output.push_back(vp);
+    }
+}
+
+// ============================================================================
+// LFF Font Glyph Import — converts LFF strokes to internal segments
+// ============================================================================
+static const double LFF_TO_INTERNAL = 3000.0 / 9.0;  // ~333.333
+
+void VectorLetterEngine::importFromLff(const LffGlyph& glyph) {
+    segments.clear();
+    maxX = 0.0;
+
+    for (const auto& stroke : glyph.strokes) {
+        if (stroke.size() < 2) continue;
+
+        std::vector<VectorPoint> segment;
+
+        // First point (no arc from previous)
+        VectorPoint vp;
+        vp.x = stroke[0].x * LFF_TO_INTERNAL;
+        vp.y = stroke[0].y * LFF_TO_INTERNAL;
+        segment.push_back(vp);
+
+        // Subsequent points — may have arcs
+        for (size_t i = 1; i < stroke.size(); i++) {
+            double x1 = stroke[i - 1].x * LFF_TO_INTERNAL;
+            double y1 = stroke[i - 1].y * LFF_TO_INTERNAL;
+            double x2 = stroke[i].x * LFF_TO_INTERNAL;
+            double y2 = stroke[i].y * LFF_TO_INTERNAL;
+
+            if (std::fabs(stroke[i].bulge) > 1e-10) {
+                // Arc from previous point to this point
+                tessellateArc(x1, y1, x2, y2, stroke[i].bulge, segment);
+            }
+
+            // Add the endpoint
+            VectorPoint ep;
+            ep.x = x2;
+            ep.y = y2;
+            segment.push_back(ep);
+        }
+
+        // Track max X for advance width
+        for (const auto& pt : segment) {
+            if (pt.x > maxX) maxX = pt.x;
+        }
+
+        segments.push_back(segment);
+    }
 }

@@ -7,6 +7,7 @@
 #include "DocumentParser.h"
 #include "GCodeEngine.h"
 #include "CanvasWindow.h"
+#include "LffFont.h"
 
 #include <Core.h>
 #include <UI/SimpleWindow/SimpleWindow.h>
@@ -36,8 +37,10 @@ InputField*    fldSafeH     = nullptr;
 
 ConfigManager  config("config.ini");
 Document*      currentDocument = nullptr;
+LffFont*       activeFont = nullptr;
+std::string    activeFontName = "standard";
 
-std::string    csvDirectory  = "";
+std::string    fontsDirectory = "";
 std::string    currentFilePath = "";
 std::string    lastInputDir  = "";
 std::string    lastOutputFile = "";
@@ -46,7 +49,7 @@ std::string    exportDiameter = "0,30";
 std::string    exportStepover = "0,15";
 std::string    exportMaterialThickness = "1,50";
 std::string    exportTextDepth = "0,20";
-std::string    exportSafeHeight = "5,00";
+std::string    exportSafeHeight = "2,00";
 bool           gridVisible   = true;
 
 double         workspaceWidth  = 300.0;
@@ -95,7 +98,7 @@ static std::string getFontsDirectory() {
     };
 
     for (const auto& candidate : candidates) {
-        if (fileExists(candidate + "65.csv")) {
+        if (fileExists(candidate + "standard.lff")) {
             return candidate;
         }
     }
@@ -129,7 +132,10 @@ static std::string intToStr(int n) {
 }
 
 void loadSettings() {
-    csvDirectory  = getFontsDirectory();
+    fontsDirectory = getFontsDirectory();
+    activeFontName = config.getValue("font_name", "standard");
+    loadFont(activeFontName);
+
     currentFilePath = config.getValue("last_input_file", "");
     lastInputDir  = config.getValue("last_input_dir", "");
     lastOutputFile = config.getValue("last_output_file", "");
@@ -163,7 +169,7 @@ void loadSettings() {
     // Load material parameters (independent of tool presets)
     exportMaterialThickness = config.getValue("export_material_thickness", "1,50");
     exportTextDepth = config.getValue("export_text_depth", "0,20");
-    exportSafeHeight = config.getValue("export_safe_height", "5,00");
+    exportSafeHeight = config.getValue("export_safe_height", "2,00");
 
     double w = 300.0, h = 200.0;
     if (tryParseDouble(config.getValue("workspace_width", "300"), w) && w > 0)
@@ -184,6 +190,7 @@ void saveSettings() {
     config.setValue("last_output_file", lastOutputFile);
     config.setValue("last_output_dir", lastOutputDir);
     config.setValue("grid_visible", gridVisible ? "1" : "0");
+    config.setValue("font_name", activeFontName);
 
     // Save tool presets
     config.setValue("tool_count", intToStr((int)toolPresets.size()));
@@ -313,6 +320,7 @@ void doNewFile() {
     currentFilePath = "";
     updateWindowTitle();
     doRenderPreview();
+    if (canvas) canvas->fitToContent();
     logMsg(L"New document");
 }
 
@@ -336,6 +344,7 @@ void doOpenFile() {
     lastInputDir = extractDir(path);
     updateWindowTitle();
     doRenderPreview();
+    if (canvas) canvas->fitToContent();
     logMsg(L"Opened: " + StringUtils::utf8ToWide(path));
 }
 
@@ -376,12 +385,10 @@ void doRenderPreview() {
         }
         if (canvas) {
             canvas->setDocument(nullptr);
-            canvas->fitToContent();
         }
         return;
     }
-    if (csvDirectory.empty()) return;
-    if (!fileExists(csvDirectory + "65.csv")) return;
+    if (!activeFont) return;
 
     double diam = 0.0, step = 0.0;
     if (!tryParseDouble(exportDiameter, diam) ||
@@ -396,14 +403,13 @@ void doRenderPreview() {
     }
 
     std::vector<int> errorLines;
-    Document doc = DocumentParser::parseString(content, csvDirectory, diam, step, &errorLines);
+    Document doc = DocumentParser::parseString(content, *activeFont, diam, step, &errorLines);
     currentDocument = new Document(doc);
 
     highlightEditorErrors(errorLines);
 
     if (canvas) {
         canvas->setDocument(currentDocument);
-        canvas->fitToContent();
     }
 }
 
@@ -424,14 +430,8 @@ void doExportGCode() {
         lastOutputDir = extractDir(path);
     }
 
-    if (csvDirectory.empty()) {
-        logMsg(L"Fonts directory not set");
-        return;
-    }
-
-    if (!fileExists(csvDirectory + "65.csv")) {
-        std::wstring msg = L"Font CSV files not found in: " + StringUtils::utf8ToWide(csvDirectory);
-        logMsg(msg);
+    if (!activeFont) {
+        logMsg(L"No font loaded");
         return;
     }
 
@@ -460,7 +460,7 @@ void doExportGCode() {
         return;
     }
 
-    Document exportDoc = DocumentParser::parseString(content, csvDirectory, diam, step);
+    Document exportDoc = DocumentParser::parseString(content, *activeFont, diam, step);
     if (exportDoc.getRows().empty()) {
         logMsg(L"Document parsing failed or returned no rows");
         return;
@@ -512,6 +512,28 @@ void doToggleGrid() {
 }
 
 // ============================================================================
+// Font loading
+// ============================================================================
+bool loadFont(const std::string& fontName) {
+    if (activeFont) {
+        delete activeFont;
+        activeFont = nullptr;
+    }
+
+    std::string path = fontsDirectory + fontName + ".lff";
+    activeFont = new LffFont();
+    if (!activeFont->load(path)) {
+        delete activeFont;
+        activeFont = nullptr;
+        logMsg(L"Failed to load font: " + StringUtils::utf8ToWide(path));
+        return false;
+    }
+    activeFontName = fontName;
+    config.setValue("font_name", fontName);
+    return true;
+}
+
+// ============================================================================
 // Tool presets
 // ============================================================================
 void applyActiveToolPreset() {
@@ -528,7 +550,6 @@ void doSelectTool(int index) {
     applyActiveToolPreset();
     updateToolButtonText();
     saveSettings();
-    doRenderPreview();
 }
 
 // ============================================================================
@@ -630,7 +651,6 @@ static LRESULT CALLBACK ToolPresetsDlgProc(
                     applyActiveToolPreset();
                     updateToolButtonText();
                     saveSettings();
-                    doRenderPreview();
                 }
                 return 0;
             }
@@ -668,7 +688,6 @@ static LRESULT CALLBACK ToolPresetsDlgProc(
                         if (s_toolDlgSel == activeToolIndex) {
                             applyActiveToolPreset();
                             updateToolButtonText();
-                            doRenderPreview();
                         }
                         saveSettings();
                     }
@@ -679,7 +698,6 @@ static LRESULT CALLBACK ToolPresetsDlgProc(
                     applyActiveToolPreset();
                     updateToolButtonText();
                     saveSettings();
-                    doRenderPreview();
                     DestroyWindow(hwnd);
                     break;
                 }
@@ -695,7 +713,6 @@ static LRESULT CALLBACK ToolPresetsDlgProc(
             applyActiveToolPreset();
             updateToolButtonText();
             saveSettings();
-            doRenderPreview();
             DestroyWindow(hwnd);
             return 0;
     }

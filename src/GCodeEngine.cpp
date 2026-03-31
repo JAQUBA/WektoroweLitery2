@@ -42,9 +42,8 @@ void GCodeEngine::appendLine(const std::string& content) {
 }
 
 void GCodeEngine::prolog(double safeHeight) {
-    appendLine("G90");
+    appendLine("G21 G90 G17 G94 G54");
     appendLine("F1000");
-    appendLine("G21");
 
     if (!m_laserMode) {
         appendLine("G00 Z" + fmtF2(safeHeight));

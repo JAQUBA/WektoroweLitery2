@@ -17,6 +17,7 @@ class LogWindow;
 
 // Forward declarations — application classes
 class Document;
+class LffFont;
 
 // Tool preset
 struct ToolPreset {
@@ -47,6 +48,9 @@ extern InputField*     fldSafeH;
 // ============================================================================
 extern ConfigManager   config;
 extern Document*       currentDocument;
+extern LffFont*        activeFont;
+extern std::string     activeFontName;
+extern std::string     fontsDirectory;
 
 // ============================================================================
 // Application state
@@ -107,5 +111,6 @@ void doRelayout();
 void applyActiveToolPreset();
 void doSelectTool(int index);
 void doShowToolPresets();
+bool loadFont(const std::string& fontName);
 
 #endif // APP_STATE_H
