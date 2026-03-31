@@ -1,9 +1,11 @@
 // ============================================================================
 // GCodeEngine.cpp — G-Code generator implementation
+//                    with G2/G3 arc fitting and path optimization for GRBL
 // ============================================================================
 #include "GCodeEngine.h"
 #include <fstream>
 #include <cstdio>
+#include <cmath>
 #include <string>
 
 static std::string fmtF2(double val) {
@@ -25,6 +27,10 @@ GCodeEngine::GCodeEngine() {
 void GCodeEngine::init() {
     m_buffer.str("");
     m_buffer.clear();
+    m_totalRawPoints = 0;
+    m_totalMoves = 0;
+    m_arcMoves = 0;
+    m_reducedPoints = 0;
 }
 
 void GCodeEngine::dumpToFile(const std::string& fileName) {
@@ -43,6 +49,7 @@ void GCodeEngine::appendLine(const std::string& content) {
 
 void GCodeEngine::prolog(double safeHeight) {
     appendLine("G21 G90 G17 G94 G54");
+    appendLine("G91.1");   // incremental arc center mode (I/J relative to start)
     appendLine("F1000");
 
     if (!m_laserMode) {
@@ -146,10 +153,12 @@ void GCodeEngine::exportDocument(const std::string& fileName, const Document& do
                 workingXY(plate.frameLeft_mm, plate.frameBottom_mm);
             }
 
-            // Draw letter vectors
+            // Draw letter vectors (optimized with G2/G3 arcs)
             for (const auto& letter : plate.getLetters()) {
                 for (const auto& segment : letter.getPointCollections()) {
                     if (segment.empty()) continue;
+
+                    m_totalRawPoints += static_cast<int>(segment.size());
 
                     Point2D pt = segment[0];
                     idleZ(safeZ);
@@ -158,16 +167,327 @@ void GCodeEngine::exportDocument(const std::string& fileName, const Document& do
                     if (segment.size() > 1) {
                         workingZ(textZ);
 
-                        for (size_t i = 1; i < segment.size(); i++) {
-                            pt = segment[i];
-                            workingXY(pt.X / scale, pt.Y / scale);
-                        }
+                        auto moves = optimizePath(segment, scale);
+                        emitOptimizedPath(moves);
                     }
                 }
             }
         }
     }
 
+    // Optimization stats comment
+    {
+        char stats[256];
+        int lineMoves = m_totalMoves - m_arcMoves;
+        std::snprintf(stats, sizeof(stats),
+            "; Optimized: %d moves (%d arcs, %d lines) from %d raw points (%d short moves / near-duplicate points removed)",
+            m_totalMoves, m_arcMoves, lineMoves, m_totalRawPoints, m_reducedPoints);
+        appendLine(stats);
+    }
+
     epilog(safeZ);
     dumpToFile(fileName);
+}
+
+// ============================================================================
+// Fit a circle through 3 points (circumscribed circle)
+// Returns false if points are collinear
+// ============================================================================
+bool GCodeEngine::fitCircle3(double x1, double y1, double x2, double y2,
+                              double x3, double y3,
+                              double& ox, double& oy, double& r) {
+    double D = 2.0 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
+    if (std::fabs(D) < 1e-10) return false;
+
+    double a = x1 * x1 + y1 * y1;
+    double b = x2 * x2 + y2 * y2;
+    double c = x3 * x3 + y3 * y3;
+
+    ox = (a * (y2 - y3) + b * (y3 - y1) + c * (y1 - y2)) / D;
+    oy = (a * (x3 - x2) + b * (x1 - x3) + c * (x2 - x1)) / D;
+
+    double dx = x1 - ox;
+    double dy = y1 - oy;
+    r = std::sqrt(dx * dx + dy * dy);
+
+    return r > 1e-10;
+}
+
+// ============================================================================
+// Perpendicular distance from point P to line A→B
+// ============================================================================
+double GCodeEngine::pointToLineDist(double px, double py,
+                                     double ax, double ay, double bx, double by) {
+    double dx = bx - ax;
+    double dy = by - ay;
+    double len2 = dx * dx + dy * dy;
+    if (len2 < 1e-20)
+        return std::sqrt((px - ax) * (px - ax) + (py - ay) * (py - ay));
+
+    double cross = std::fabs((px - ax) * dy - (py - ay) * dx);
+    return cross / std::sqrt(len2);
+}
+
+// ============================================================================
+// Signed turn angle at point B in path A→B→C
+// Positive = CCW (left turn), Negative = CW (right turn)
+// ============================================================================
+double GCodeEngine::turnAngle(double ax, double ay, double bx, double by,
+                               double cx, double cy) {
+    double d1x = bx - ax, d1y = by - ay;
+    double d2x = cx - bx, d2y = cy - by;
+    // cross product → sin(angle), dot product → cos(angle)
+    double cross = d1x * d2y - d1y * d2x;
+    double dot   = d1x * d2x + d1y * d2y;
+    return std::atan2(cross, dot);
+}
+
+// ============================================================================
+// Greedily fit the longest valid arc starting at pts[from], up to pts[maxTo].
+// Returns end index of arc (>= from + MIN_ARC_POINTS - 1) or 0 if no arc.
+// ============================================================================
+size_t GCodeEngine::tryFitArc(const std::vector<Point2D>& pts, size_t from, size_t maxTo,
+                               GCodeMove& move) {
+    // Need at least 3 points to define a circle
+    if (from + 2 > maxTo) return 0;
+
+    // Initial 3-point circle fit
+    double ox, oy, r;
+    if (!fitCircle3(pts[from].X, pts[from].Y,
+                    pts[from + 1].X, pts[from + 1].Y,
+                    pts[from + 2].X, pts[from + 2].Y,
+                    ox, oy, r))
+        return 0;
+
+    if (r < MIN_ARC_RADIUS || r > MAX_ARC_RADIUS)
+        return 0;
+
+    // Determine CW/CCW from cross product of first 3 points
+    double cross = (pts[from + 1].X - pts[from].X) * (pts[from + 2].Y - pts[from].Y) -
+                   (pts[from + 1].Y - pts[from].Y) * (pts[from + 2].X - pts[from].X);
+    bool ccw = (cross > 0);
+
+    // Greedily extend — add points while they stay on the circle
+    constexpr double kPi = 3.14159265358979323846;
+    size_t arcEnd = from + 2;
+    double prevAngle = std::atan2(pts[from + 2].Y - oy, pts[from + 2].X - ox);
+
+    for (size_t j = from + 3; j <= maxTo; j++) {
+        double dx = pts[j].X - ox;
+        double dy = pts[j].Y - oy;
+        double dist = std::sqrt(dx * dx + dy * dy);
+        if (std::fabs(dist - r) > ARC_TOLERANCE) break;
+
+        // Check angular monotonicity
+        double angle = std::atan2(dy, dx);
+        double delta = angle - prevAngle;
+        while (delta > kPi) delta -= 2.0 * kPi;
+        while (delta < -kPi) delta += 2.0 * kPi;
+
+        if (ccw && delta < -0.01) break;
+        if (!ccw && delta > 0.01) break;
+
+        prevAngle = angle;
+        arcEnd = j;
+    }
+
+    size_t arcLen = arcEnd - from + 1;
+    if (arcLen < static_cast<size_t>(MIN_ARC_POINTS)) return 0;
+
+    // Refit circle with first / mid / end for best accuracy
+    size_t mid = (from + arcEnd) / 2;
+    if (!fitCircle3(pts[from].X, pts[from].Y,
+                    pts[mid].X, pts[mid].Y,
+                    pts[arcEnd].X, pts[arcEnd].Y,
+                    ox, oy, r))
+        return 0;
+
+    if (r < MIN_ARC_RADIUS || r > MAX_ARC_RADIUS)
+        return 0;
+
+    // Validate ALL points on the refitted circle
+    for (size_t k = from; k <= arcEnd; k++) {
+        double dx = pts[k].X - ox;
+        double dy = pts[k].Y - oy;
+        double dist = std::sqrt(dx * dx + dy * dy);
+        if (std::fabs(dist - r) > ARC_TOLERANCE)
+            return 0;
+    }
+
+    // GRBL radius check: |r_start - r_end| must be small
+    {
+        double dx1 = pts[from].X - ox, dy1 = pts[from].Y - oy;
+        double dx2 = pts[arcEnd].X - ox, dy2 = pts[arcEnd].Y - oy;
+        double r1 = std::sqrt(dx1 * dx1 + dy1 * dy1);
+        double r2 = std::sqrt(dx2 * dx2 + dy2 * dy2);
+        double rdiff = std::fabs(r1 - r2);
+        double maxDiff = (0.001 * r > 0.005) ? 0.001 * r : 0.005;
+        if (rdiff > maxDiff)
+            return 0;
+    }
+
+    // Re-determine direction after refit
+    double turnSum = 0.0;
+    for (size_t k = from + 1; k < arcEnd; k++) {
+        turnSum += turnAngle(pts[k-1].X, pts[k-1].Y,
+                             pts[k].X, pts[k].Y,
+                             pts[k+1].X, pts[k+1].Y);
+    }
+    ccw = (turnSum > 0);
+
+    move.type = ccw ? GCodeMove::ARC_CCW : GCodeMove::ARC_CW;
+    move.x = pts[arcEnd].X;
+    move.y = pts[arcEnd].Y;
+    move.ci = ox - pts[from].X;
+    move.cj = oy - pts[from].Y;
+
+    return arcEnd;
+}
+
+// ============================================================================
+// Try collinear reduction: find farthest point from 'from' to 'maxTo'
+// where all intermediate points are within tolerance of the straight line
+// ============================================================================
+size_t GCodeEngine::tryCollinearReduce(const std::vector<Point2D>& pts,
+                                        size_t from, size_t maxTo) {
+    size_t best = from + 1;
+    for (size_t j = from + 2; j <= maxTo; j++) {
+        bool allOk = true;
+        for (size_t k = from + 1; k < j; k++) {
+            double d = pointToLineDist(pts[k].X, pts[k].Y,
+                                        pts[from].X, pts[from].Y,
+                                        pts[j].X, pts[j].Y);
+            if (d > COLLINEAR_TOLERANCE) {
+                allOk = false;
+                break;
+            }
+        }
+        if (allOk) best = j;
+        else break;
+    }
+    return best;
+}
+
+// ============================================================================
+// Build optimized move list from raw PointCollection
+//
+// Algorithm:
+//   1. Scale to mm, remove duplicate consecutive points
+//   2. Compute turn angle at each interior point
+//   3. Split path at "corners" (|turn| > CORNER_THRESHOLD)
+//   4. For each smooth segment between corners:
+//      a. If turns are consistent (same sign) and enough points → try arc fit
+//      b. Otherwise → collinear reduction (merge straight runs into one G01)
+// ============================================================================
+std::vector<GCodeMove> GCodeEngine::optimizePath(const PointCollection& rawPoints,
+                                                  double scale) {
+    std::vector<GCodeMove> moves;
+    if (rawPoints.size() < 2) return moves;
+
+    // --- Step 1: Scale to mm and remove near-duplicate points ---
+    std::vector<Point2D> pts;
+    pts.reserve(rawPoints.size());
+    for (const auto& p : rawPoints)
+        pts.push_back(Point2D(p.X / scale, p.Y / scale));
+
+    std::vector<Point2D> filtered;
+    filtered.reserve(pts.size());
+    filtered.push_back(pts[0]);
+    for (size_t k = 1; k < pts.size(); k++) {
+        double dx = pts[k].X - filtered.back().X;
+        double dy = pts[k].Y - filtered.back().Y;
+        if (dx * dx + dy * dy >= MIN_MOVE_LEN * MIN_MOVE_LEN)
+            filtered.push_back(pts[k]);
+    }
+    m_reducedPoints += static_cast<int>(pts.size() - filtered.size());
+
+    if (filtered.size() < 2) return moves;
+
+    size_t N = filtered.size();
+
+    // --- Step 2: Compute turn angles at interior points ---
+    // turnAngles[k] = turn angle at filtered[k] (only valid for k=1..N-2)
+    std::vector<double> turns(N, 0.0);
+    for (size_t k = 1; k + 1 < N; k++) {
+        turns[k] = turnAngle(filtered[k-1].X, filtered[k-1].Y,
+                              filtered[k].X, filtered[k].Y,
+                              filtered[k+1].X, filtered[k+1].Y);
+    }
+
+    // --- Step 3: Find corner indices (sharp turns that break smooth regions) ---
+    // Corners split the path into segments where arc fitting makes sense
+    std::vector<size_t> corners;
+    corners.push_back(0);  // path start
+    for (size_t k = 1; k + 1 < N; k++) {
+        if (std::fabs(turns[k]) > CORNER_THRESHOLD)
+            corners.push_back(k);
+    }
+    corners.push_back(N - 1);  // path end
+
+    // --- Step 4: Process smooth segments with greedy arc detection ---
+    size_t emittedPos = 0;
+
+    for (size_t ci = 0; ci + 1 < corners.size(); ci++) {
+        size_t segFrom = corners[ci];
+        size_t segTo   = corners[ci + 1];
+
+        if (segFrom < emittedPos) segFrom = emittedPos;
+        if (segTo <= segFrom) continue;
+
+        size_t pos = segFrom;
+        while (pos < segTo) {
+            // Try greedy arc fit starting at pos
+            GCodeMove arcMove;
+            size_t arcEnd = tryFitArc(filtered, pos, segTo, arcMove);
+            if (arcEnd > 0) {
+                moves.push_back(arcMove);
+                m_arcMoves++;
+                m_totalMoves++;
+                emittedPos = arcEnd;
+                pos = arcEnd;
+                continue;
+            }
+
+            // Fallback: collinear reduction
+            size_t lineEnd = tryCollinearReduce(filtered, pos, segTo);
+
+            GCodeMove m;
+            m.type = GCodeMove::LINE;
+            m.x = filtered[lineEnd].X;
+            m.y = filtered[lineEnd].Y;
+            moves.push_back(m);
+            m_totalMoves++;
+
+            emittedPos = lineEnd;
+            pos = lineEnd;
+        }
+    }
+
+    return moves;
+}
+
+// ============================================================================
+// Emit optimized G-code moves (G01 lines + G02/G03 arcs)
+// ============================================================================
+void GCodeEngine::emitOptimizedPath(const std::vector<GCodeMove>& moves) {
+    char buf[128];
+    for (const auto& m : moves) {
+        switch (m.type) {
+        case GCodeMove::LINE:
+            std::snprintf(buf, sizeof(buf), "G01 X%s Y%s",
+                          fmtF3(m.x).c_str(), fmtF3(m.y).c_str());
+            break;
+        case GCodeMove::ARC_CW:
+            std::snprintf(buf, sizeof(buf), "G02 X%s Y%s I%s J%s",
+                          fmtF3(m.x).c_str(), fmtF3(m.y).c_str(),
+                          fmtF3(m.ci).c_str(), fmtF3(m.cj).c_str());
+            break;
+        case GCodeMove::ARC_CCW:
+            std::snprintf(buf, sizeof(buf), "G03 X%s Y%s I%s J%s",
+                          fmtF3(m.x).c_str(), fmtF3(m.y).c_str(),
+                          fmtF3(m.ci).c_str(), fmtF3(m.cj).c_str());
+            break;
+        }
+        appendLine(buf);
+    }
 }

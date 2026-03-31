@@ -483,6 +483,19 @@ void doExportGCode() {
     GCodeEngine gce;
     gce.exportDocument(lastOutputFile, exportDoc);
 
+    {
+        int total = gce.getTotalMoves();
+        int arcs = gce.getArcMoves();
+        int lines = total - arcs;
+        int raw = gce.getTotalRawPoints();
+        int dupes = gce.getReducedPoints();
+        wchar_t sBuf[256];
+        _snwprintf_s(sBuf, 256, _TRUNCATE,
+            L"Optimization: %d moves (%d arcs G2/G3, %d lines G01) from %d raw points (%d short moves filtered)",
+            total, arcs, lines, raw, dupes);
+        logMsg(sBuf);
+    }
+
     std::wstring msg = L"G-Code exported to: " + StringUtils::utf8ToWide(lastOutputFile);
     logMsg(msg);
 }
