@@ -165,7 +165,6 @@ void loadSettings() {
             }
             toolConfig.setValue("tool_count", intToStr(legacyToolCount));
             toolConfig.setValue("active_tool", config.getValue("active_tool", "0"));
-            toolConfig.save();
             toolCount = legacyToolCount;
         }
     }
