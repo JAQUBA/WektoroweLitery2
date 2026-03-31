@@ -490,8 +490,8 @@ void doExportGCode() {
         int raw = gce.getTotalRawPoints();
         int dupes = gce.getReducedPoints();
         wchar_t sBuf[256];
-        _snwprintf(sBuf, 256,
-            L"Optimization: %d moves (%d arcs G2/G3, %d lines G01) from %d raw points (%d duplicates removed)",
+        _snwprintf_s(sBuf, 256, _TRUNCATE,
+            L"Optimization: %d moves (%d arcs G2/G3, %d lines G01) from %d raw points (%d short moves filtered)",
             total, arcs, lines, raw, dupes);
         logMsg(sBuf);
     }

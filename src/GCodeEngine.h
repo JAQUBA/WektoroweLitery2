@@ -12,6 +12,10 @@
 #include <vector>
 
 // --- Optimized G-code move (line or arc) ---
+// NOTE: Arc center offsets ci/cj (I/J in G-code) are relative to the arc start point.
+//       This assumes the controller is in incremental arc center mode (GRBL default).
+//       On non-GRBL controllers that default to absolute arc center mode (G90.1),
+//       the prolog sets G91.1 to ensure incremental I/J interpretation.
 struct GCodeMove {
     enum Type { LINE, ARC_CW, ARC_CCW };
     Type type = LINE;

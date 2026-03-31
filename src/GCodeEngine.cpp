@@ -49,6 +49,7 @@ void GCodeEngine::appendLine(const std::string& content) {
 
 void GCodeEngine::prolog(double safeHeight) {
     appendLine("G21 G90 G17 G94 G54");
+    appendLine("G91.1");   // incremental arc center mode (I/J relative to start)
     appendLine("F1000");
 
     if (!m_laserMode) {
@@ -179,7 +180,7 @@ void GCodeEngine::exportDocument(const std::string& fileName, const Document& do
         char stats[256];
         int lineMoves = m_totalMoves - m_arcMoves;
         std::snprintf(stats, sizeof(stats),
-            "; Optimized: %d moves (%d arcs, %d lines) from %d raw points (%d duplicates removed)",
+            "; Optimized: %d moves (%d arcs, %d lines) from %d raw points (%d short moves / near-duplicate points removed)",
             m_totalMoves, m_arcMoves, lineMoves, m_totalRawPoints, m_reducedPoints);
         appendLine(stats);
     }
@@ -267,6 +268,7 @@ size_t GCodeEngine::tryFitArc(const std::vector<Point2D>& pts, size_t from, size
     bool ccw = (cross > 0);
 
     // Greedily extend — add points while they stay on the circle
+    constexpr double kPi = 3.14159265358979323846;
     size_t arcEnd = from + 2;
     double prevAngle = std::atan2(pts[from + 2].Y - oy, pts[from + 2].X - ox);
 
@@ -279,8 +281,8 @@ size_t GCodeEngine::tryFitArc(const std::vector<Point2D>& pts, size_t from, size
         // Check angular monotonicity
         double angle = std::atan2(dy, dx);
         double delta = angle - prevAngle;
-        while (delta > M_PI) delta -= 2.0 * M_PI;
-        while (delta < -M_PI) delta += 2.0 * M_PI;
+        while (delta > kPi) delta -= 2.0 * kPi;
+        while (delta < -kPi) delta += 2.0 * kPi;
 
         if (ccw && delta < -0.01) break;
         if (!ccw && delta > 0.01) break;
