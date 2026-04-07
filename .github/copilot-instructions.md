@@ -1,6 +1,6 @@
 # Copilot Instructions — Vector Letters 2
 
-> **IMPORTANT:** Keep this file and `README.md` up to date whenever you add, rename, or remove modules, change data structures, add UI components, modify G-Code output, or change configuration keys.
+> **IMPORTANT:** Keep this file, `README.md`, and licensing docs (`LICENSE`, `THIRD_PARTY_NOTICES.md`) up to date whenever you add, rename, or remove modules, change data structures, add UI components, modify G-Code output, change configuration keys, or change dependencies/licenses.
 
 ## Project Description
 
@@ -46,7 +46,7 @@ WektoroweLitery2/
 | **main.cpp** | `setup()` / `loop()` — window creation (1200×700), menu, UI, canvas init, `doRelayout()`, close handler saves settings |
 | **AppState** | `ToolPreset` struct. Global state: `currentDocument`, `activeFont`, tool presets, export params. Functions: `loadSettings()` / `saveSettings()`, `doRenderPreview()`, `doExportGCode()`, `doNewFile()` / `doOpenFile()` / `doSaveFile()` / `doSaveFileAs()`, `doShowToolPresets()`, `doShowWorkspaceSettings()`, `doRelayout()`, `applyActiveToolPreset()`, `loadFont()`, file dialogs, `logMsg()` |
 | **AppUI** | `createUI()` — Export button, tool/font selector popups, Material/Depth/Safe Z fields, output path field, RichEdit editor (Consolas 12pt, auto-render with 300 ms debounce), draggable splitter, `highlightEditorErrors()`, `showToolPopup()` / `showFontPopup()` |
-| **MenuHandler** | `createAppMenu()` — File (New, Open, Save, Save As, Export, Exit), View (grid, reset, log), Settings (tool presets, workspace), Help (About) |
+| **MenuHandler** | `createAppMenu()` — File (New, Open, Save, Save As, Export, Exit), View (grid, reset, log), Settings (tool presets, workspace), Help (About). The About dialog lists bundled libraries and their licenses. |
 | **CanvasWindow** (VectorCanvas) | Subclass of JQB_WindowsLib `CanvasWindow` — renders workspace bounds, documents (rows → nameplates → letter vectors + frames), `setDocument()`, `fitToContent()` |
 | **Font/VectorPoint** | Point struct: `x`, `y`, `alphaPrimary`, `alphaMean`, `widthFactor`, `hasSerif`, `isTerminator`, `options` |
 | **Font/LffFont** | LFF font parser: `load(path)` parses glyphs (header, polylines, arcs, references), `getGlyph(codePoint)`, `getLetterSpacing()`, `listFonts(dir)`. Structs: `LffGlyph` (codePoint, width, strokes), `LffPoint` (x, y, bulge) |
@@ -316,11 +316,13 @@ When making changes to this project, **always update these files**:
 
 - **`.github/copilot-instructions.md`** (this file) — when adding/removing modules, changing data structures, adding config keys, modifying G-Code output format, adding UI components, or changing the architecture
 - **`README.md`** — when adding user-visible features, changing build instructions, or modifying the application workflow
+- **`THIRD_PARTY_NOTICES.md`** — when adding/removing dependencies or changing licensing/distribution obligations
+- **`LICENSE`** — when changing the project's own license
 
 ---
 
 ### Build Configuration Note
 
-The `platformio.ini` uses `../JQB_CAMCommon` to reference the standalone JQB_CAMCommon library at `d:\Programowanie\JQB_CAMCommon`. This canonical location is shared with gerber2gcode and provides reusable CAM utilities (path optimization, G-code formatting, arc math).
+The checked-in `platformio.ini` uses GitHub dependencies for `JQB_WindowsLib` and `JQB_CAMCommon`. For local multi-repo development, these can be switched to `../JQB_WindowsLib` and `../JQB_CAMCommon`, where the standalone JQB_CAMCommon library lives at `d:\Programowanie\JQB_CAMCommon`.
 
-Clipper2 is provided through local `lib/Clipper2/CPP` in this repository. The shared pre-build script is wired in `../JQB_CAMCommon/library.json` (`build.extraScript`) and automatically clones Clipper2 from GitHub when `lib/Clipper2` is missing, so builds work out-of-the-box after clone.
+Clipper2 is provided through local `lib/Clipper2/CPP` in this repository. The shared pre-build script is wired in the JQB_CAMCommon library manifest (`library.json` → `build.extraScript`) and automatically clones Clipper2 from GitHub when `lib/Clipper2` is missing, so builds work out-of-the-box after clone.

@@ -52,7 +52,12 @@ void createAppMenu(SimpleWindow* win) {
                 L"Vector Letters 2\n"
                 L"C++ port using JQB_WindowsLib\n\n"
                 L"CNC / Laser engraving nameplate generator\n"
-                L"with vector font rendering.",
+                L"with vector font rendering.\n\n"
+                L"Used libraries and licenses:\n"
+                L"  JQB_WindowsLib — LGPL-3.0-or-later\n"
+                L"  JQB_CAMCommon — LGPL-3.0-or-later\n"
+                L"  Clipper2 — Boost Software License 1.0\n\n"
+                L"Distribution details: see LICENSE and THIRD_PARTY_NOTICES.md",
                 L"About", MB_OK | MB_ICONINFORMATION);
         });
     });

@@ -1,7 +1,5 @@
 # Wektorowe Litery 2
 
-> **Note:** Keep this file and `.github/copilot-instructions.md` up to date when adding features, changing the build process, or modifying the application workflow.
-
 Native Windows desktop application for generating **vector font nameplates** for CNC milling and laser engraving. Reads layout definition files, renders real-time preview, and exports optimized **G-Code with G2/G3 arc fitting**.
 
 Port of the original C# WPF application [WektoroweLitery](https://github.com/JAQUBA/WektoroweLitery) to C++17 using [JQB_WindowsLib](https://github.com/JAQUBA/JQB_WindowsLib).
@@ -54,6 +52,7 @@ Port of the original C# WPF application [WektoroweLitery](https://github.com/JAQ
 - [PlatformIO](https://platformio.org/) (CLI or VS Code extension)
 - [JQB_MinGW](https://github.com/JAQUBA/JQB_MinGW) platform (downloaded automatically)
 - [JQB_WindowsLib](https://github.com/JAQUBA/JQB_WindowsLib) library (downloaded automatically)
+- [JQB_CAMCommon](https://github.com/JAQUBA/JQB_CAMCommon) library (downloaded automatically)
 - Git (used by pre-build script to auto-download Clipper2 if missing)
 
 No manual compiler or library installation needed — PlatformIO resolves everything.
@@ -70,6 +69,14 @@ Font files are copied to the output directory automatically by `scripts/copy_fon
 
 Clipper2 is downloaded automatically on build (if missing) by JQB_CAMCommon library manifest (`library.json` → `build.extraScript`).
 
+The checked-in `platformio.ini` uses GitHub dependencies for both shared libraries:
+
+```ini
+lib_deps =
+    https://github.com/JAQUBA/JQB_WindowsLib.git
+    https://github.com/JAQUBA/JQB_CAMCommon.git
+```
+
 ### `platformio.ini`
 
 ```ini
@@ -78,11 +85,13 @@ platform = https://github.com/JAQUBA/JQB_MinGW.git
 extra_scripts =
     post:scripts/copy_fonts.py
 lib_deps =
-    ../JQB_WindowsLib
-    ../JQB_CAMCommon
+    https://github.com/JAQUBA/JQB_WindowsLib.git
+    https://github.com/JAQUBA/JQB_CAMCommon.git
 lib_extra_dirs =
     lib/Clipper2/CPP
 ```
+
+For local multi-repo development, these Git dependencies can be replaced with `../JQB_WindowsLib` and `../JQB_CAMCommon`.
 
 C++17, UNICODE, static linking, and library flags are added automatically by `compile_resources.py`.
 
@@ -106,6 +115,8 @@ View      → Show grid | Reset view | Log window
 Settings  → Tool presets... | Machine workspace size...
 Help      → About...
 ```
+
+The `Help → About...` dialog inside the binary lists the bundled/open-source libraries together with their licenses.
 
 ### Layout File Format
 
@@ -280,12 +291,32 @@ The `examples/` directory contains sample layout files for Polish industrial nam
 | Language | C++17 |
 | Build system | PlatformIO (native via [JQB_MinGW](https://github.com/JAQUBA/JQB_MinGW)) |
 | UI framework | [JQB_WindowsLib](https://github.com/JAQUBA/JQB_WindowsLib) |
+| CAM library | [JQB_CAMCommon](https://github.com/JAQUBA/JQB_CAMCommon) |
+| Geometry backend | [Clipper2](https://github.com/AngusJohnson/Clipper2) |
 | Rendering | WinAPI GDI (via CanvasWindow — zoom/pan/grid) |
 | Font format | LibreCAD Font Format (.lff) |
 | Target | Windows 10+ (x64) |
 
 ---
 
+## Contributing
+
+Contributions are welcome. For substantial changes, keep `README.md` and `.github/copilot-instructions.md` aligned with the implementation, especially when changing build flow, data structures, or UI behavior.
+
+---
+
 ## License
 
-See [LICENSE](LICENSE).
+The source code in this repository is licensed under the [MIT License](LICENSE).
+
+This repository also depends on third-party components with separate licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for details.
+
+Important: while this repository's own source files are MIT-licensed, distributed binaries must also comply with the licenses of linked dependencies (currently LGPL for JQB_WindowsLib and JQB_CAMCommon, plus BSL-1.0 for Clipper2).
+
+Because the current build uses static linking, a compliant distribution should also include the required third-party license texts and a practical LGPL relinking path for JQB_WindowsLib and JQB_CAMCommon (for example relinkable object files or an equivalent mechanism).
+
+## Acknowledgments
+
+- [JQB_WindowsLib](https://github.com/JAQUBA/JQB_WindowsLib) — native Win32 UI framework
+- [JQB_CAMCommon](https://github.com/JAQUBA/JQB_CAMCommon) — shared CAM utilities
+- [Clipper2](https://github.com/AngusJohnson/Clipper2) — polygon operations and offsets
