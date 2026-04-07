@@ -15,8 +15,9 @@
 #include <UI/InputField/InputField.h>
 #include <UI/LogWindow/LogWindow.h>
 #include <Util/ConfigManager.h>
+#include <Util/FileDialogs.h>
+#include <Util/NumberUtils.h>
 #include <Util/StringUtils.h>
-#include <commdlg.h>
 #include <vector>
 #include <algorithm>
 #include <fstream>
@@ -67,18 +68,7 @@ static bool fileExists(const std::string& path) {
 }
 
 static bool tryParseDouble(const std::string& src, double& out) {
-    std::string tmp = src;
-    tmp.erase(std::remove_if(tmp.begin(), tmp.end(), [](unsigned char c) {
-        return c == ' ' || c == '\t' || c == '\r' || c == '\n';
-    }), tmp.end());
-    std::replace(tmp.begin(), tmp.end(), ',', '.');
-    if (tmp.empty()) return false;
-    try {
-        out = std::stod(tmp);
-        return true;
-    } catch (...) {
-        return false;
-    }
+    return NumberUtils::tryParseDouble(src, out);
 }
 
 static std::string getFontsDirectory() {
@@ -282,45 +272,6 @@ std::string extractDir(const std::string& filePath) {
     return "";
 }
 
-std::string openFileDialog(HWND owner, const wchar_t* filter, const wchar_t* title,
-                            const std::string& initialDir) {
-    wchar_t filePath[MAX_PATH] = {};
-    std::wstring wInitDir = StringUtils::utf8ToWide(initialDir);
-    OPENFILENAMEW ofn = {};
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = owner;
-    ofn.lpstrFilter = filter;
-    ofn.lpstrFile = filePath;
-    ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrTitle = title;
-    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-    if (!wInitDir.empty())
-        ofn.lpstrInitialDir = wInitDir.c_str();
-    if (GetOpenFileNameW(&ofn))
-        return StringUtils::wideToUtf8(filePath);
-    return "";
-}
-
-std::string saveFileDialog(HWND owner, const wchar_t* filter, const wchar_t* title,
-                            const wchar_t* defaultExt, const std::string& initialDir) {
-    wchar_t filePath[MAX_PATH] = {};
-    std::wstring wInitDir = StringUtils::utf8ToWide(initialDir);
-    OPENFILENAMEW ofn = {};
-    ofn.lStructSize = sizeof(ofn);
-    ofn.hwndOwner = owner;
-    ofn.lpstrFilter = filter;
-    ofn.lpstrFile = filePath;
-    ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrTitle = title;
-    ofn.lpstrDefExt = defaultExt;
-    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
-    if (!wInitDir.empty())
-        ofn.lpstrInitialDir = wInitDir.c_str();
-    if (GetSaveFileNameW(&ofn))
-        return StringUtils::wideToUtf8(filePath);
-    return "";
-}
-
 // ============================================================================
 // Editor helpers
 // ============================================================================
@@ -376,7 +327,7 @@ void doNewFile() {
 }
 
 void doOpenFile() {
-    std::string path = openFileDialog(window->getHandle(),
+    std::string path = FileDialogs::openFileDialogUTF8(window->getHandle(),
         L"Layout files (*.txt)\0*.txt\0All files (*.*)\0*.*\0",
         L"Open layout file", lastInputDir);
     if (path.empty()) return;
@@ -416,7 +367,7 @@ void doSaveFile() {
 }
 
 void doSaveFileAs() {
-    std::string path = saveFileDialog(window->getHandle(),
+    std::string path = FileDialogs::saveFileDialogUTF8(window->getHandle(),
         L"Layout files (*.txt)\0*.txt\0All files (*.*)\0*.*\0",
         L"Save layout file as", L"txt", lastInputDir);
     if (path.empty()) return;
@@ -473,7 +424,7 @@ void doExportGCode() {
 
     // Auto-show save dialog if no output file is set
     if (lastOutputFile.empty()) {
-        std::string path = saveFileDialog(window->getHandle(),
+        std::string path = FileDialogs::saveFileDialogUTF8(window->getHandle(),
             L"G-Code files (*.gcode)\0*.gcode\0All files (*.*)\0*.*\0",
             L"Export G-Code file", L"gcode", lastOutputDir);
         if (path.empty()) return;

@@ -94,18 +94,7 @@ private:
     // endpoint index where all intermediate points are within tolerance.
     size_t tryCollinearReduce(const std::vector<Point2D>& pts, size_t from, size_t to);
 
-    // Fit a circle through 3 points; returns false if collinear
-    static bool fitCircle3(double x1, double y1, double x2, double y2,
-                           double x3, double y3,
-                           double& ox, double& oy, double& r);
-
-    // Perpendicular distance from point (px,py) to line (ax,ay)→(bx,by)
-    static double pointToLineDist(double px, double py,
-                                  double ax, double ay, double bx, double by);
-
-    // Normalized turn angle at point B in path A→B→C (positive = CCW)
-    static double turnAngle(double ax, double ay, double bx, double by,
-                            double cx, double cy);
+    // Arc/line math primitives are provided by JQB_CAMCommon (Common/ArcMath.h)
 };
 
 #endif // GCODE_ENGINE_H

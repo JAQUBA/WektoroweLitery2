@@ -12,6 +12,8 @@
 #include "Nameplate.h"
 #include "TableRow.h"
 
+#include <Util/NumberUtils.h>
+
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -26,9 +28,7 @@ static std::string trim(const std::string& s) {
 }
 
 static double parseDouble(const std::string& s) {
-    std::string tmp = trim(s);
-    std::replace(tmp.begin(), tmp.end(), ',', '.');
-    return std::stod(tmp);
+    return NumberUtils::parseDouble(s);
 }
 
 static std::vector<std::string> split(const std::string& s, char sep) {

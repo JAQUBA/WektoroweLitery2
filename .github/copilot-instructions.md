@@ -62,6 +62,7 @@ WektoroweLitery2/
 - **Language**: C++17
 - **Build system**: PlatformIO (`platform = native` via JQB_MinGW)
 - **UI framework**: [JQB_WindowsLib](https://github.com/JAQUBA/JQB_WindowsLib) — lightweight Win32 UI library
+- **CAM library**: [JQB_CAMCommon](https://github.com/JAQUBA/JQB_CAMCommon) — reusable CAM utilities (G-code generation, arc math)
 - **Rendering**: WinAPI GDI (via reusable CanvasWindow from JQB_WindowsLib — zoom/pan/grid inherited)
 - **Font format**: LibreCAD Font Format (.lff)
 - **Target platform**: Windows 10+ (x64)
@@ -315,3 +316,11 @@ When making changes to this project, **always update these files**:
 
 - **`.github/copilot-instructions.md`** (this file) — when adding/removing modules, changing data structures, adding config keys, modifying G-Code output format, adding UI components, or changing the architecture
 - **`README.md`** — when adding user-visible features, changing build instructions, or modifying the application workflow
+
+---
+
+### Build Configuration Note
+
+The `platformio.ini` uses `../JQB_CAMCommon` to reference the standalone JQB_CAMCommon library at `d:\Programowanie\JQB_CAMCommon`. This canonical location is shared with gerber2gcode and provides reusable CAM utilities (path optimization, G-code formatting, arc math).
+
+Clipper2 is provided through local `lib/Clipper2/CPP` in this repository. The shared pre-build script is wired in `../JQB_CAMCommon/library.json` (`build.extraScript`) and automatically clones Clipper2 from GitHub when `lib/Clipper2` is missing, so builds work out-of-the-box after clone.

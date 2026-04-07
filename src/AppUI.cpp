@@ -11,6 +11,8 @@
 #include <UI/Label/Label.h>
 #include <UI/Button/Button.h>
 #include <UI/InputField/InputField.h>
+#include <Util/FileDialogs.h>
+#include <Util/TimerUtils.h>
 #include <Util/StringUtils.h>
 #include "Font/LffFont.h"
 #include <commctrl.h>
@@ -47,13 +49,12 @@ static LRESULT CALLBACK EditorParentSubclassProc(
     if (msg == WM_COMMAND && HIWORD(wParam) == EN_CHANGE) {
         HWND hCtrl = (HWND)lParam;
         if (hCtrl == hEditor && !editorChangeIgnore) {
-            KillTimer(hwnd, RENDER_TIMER_ID);
-            SetTimer(hwnd, RENDER_TIMER_ID, RENDER_DELAY_MS, NULL);
+            TimerUtils::restartDebounceTimer(hwnd, RENDER_TIMER_ID, RENDER_DELAY_MS);
         }
     }
 
     if (msg == WM_TIMER && wParam == RENDER_TIMER_ID) {
-        KillTimer(hwnd, RENDER_TIMER_ID);
+        TimerUtils::stopTimer(hwnd, RENDER_TIMER_ID);
         doRenderPreview();
         return 0;
     }
@@ -206,7 +207,7 @@ void createUI(SimpleWindow* win) {
 
     styleBtn(win, new Button(m + 710, y, 30, 26, "...",
         [outputField](Button*) {
-            std::string path = saveFileDialog(window->getHandle(),
+            std::string path = FileDialogs::saveFileDialogUTF8(window->getHandle(),
                 L"G-Code files (*.gcode)\0*.gcode\0All files (*.*)\0*.*\0",
                 L"Select output G-Code file", L"gcode", lastOutputDir);
             if (!path.empty()) {

@@ -97,10 +97,6 @@ void updateWindowTitle();
 
 // File dialog helpers
 std::string extractDir(const std::string& filePath);
-std::string openFileDialog(HWND owner, const wchar_t* filter, const wchar_t* title,
-                            const std::string& initialDir);
-std::string saveFileDialog(HWND owner, const wchar_t* filter, const wchar_t* title,
-                            const wchar_t* defaultExt, const std::string& initialDir);
 
 // Shared actions (used by UI buttons and menu)
 void doRenderPreview();

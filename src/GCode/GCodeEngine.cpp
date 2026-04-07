@@ -3,6 +3,7 @@
 //                    with G2/G3 arc fitting and path optimization for GRBL
 // ============================================================================
 #include "GCodeEngine.h"
+#include <Common/ArcMath.h>
 #include <fstream>
 #include <cstdio>
 #include <cmath>
@@ -199,59 +200,6 @@ void GCodeEngine::exportDocument(const std::string& fileName, const Document& do
 }
 
 // ============================================================================
-// Fit a circle through 3 points (circumscribed circle)
-// Returns false if points are collinear
-// ============================================================================
-bool GCodeEngine::fitCircle3(double x1, double y1, double x2, double y2,
-                              double x3, double y3,
-                              double& ox, double& oy, double& r) {
-    double D = 2.0 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2));
-    if (std::fabs(D) < 1e-10) return false;
-
-    double a = x1 * x1 + y1 * y1;
-    double b = x2 * x2 + y2 * y2;
-    double c = x3 * x3 + y3 * y3;
-
-    ox = (a * (y2 - y3) + b * (y3 - y1) + c * (y1 - y2)) / D;
-    oy = (a * (x3 - x2) + b * (x1 - x3) + c * (x2 - x1)) / D;
-
-    double dx = x1 - ox;
-    double dy = y1 - oy;
-    r = std::sqrt(dx * dx + dy * dy);
-
-    return r > 1e-10;
-}
-
-// ============================================================================
-// Perpendicular distance from point P to line A→B
-// ============================================================================
-double GCodeEngine::pointToLineDist(double px, double py,
-                                     double ax, double ay, double bx, double by) {
-    double dx = bx - ax;
-    double dy = by - ay;
-    double len2 = dx * dx + dy * dy;
-    if (len2 < 1e-20)
-        return std::sqrt((px - ax) * (px - ax) + (py - ay) * (py - ay));
-
-    double cross = std::fabs((px - ax) * dy - (py - ay) * dx);
-    return cross / std::sqrt(len2);
-}
-
-// ============================================================================
-// Signed turn angle at point B in path A→B→C
-// Positive = CCW (left turn), Negative = CW (right turn)
-// ============================================================================
-double GCodeEngine::turnAngle(double ax, double ay, double bx, double by,
-                               double cx, double cy) {
-    double d1x = bx - ax, d1y = by - ay;
-    double d2x = cx - bx, d2y = cy - by;
-    // cross product → sin(angle), dot product → cos(angle)
-    double cross = d1x * d2y - d1y * d2x;
-    double dot   = d1x * d2x + d1y * d2y;
-    return std::atan2(cross, dot);
-}
-
-// ============================================================================
 // Greedily fit the longest valid arc starting at pts[from], up to pts[maxTo].
 // Returns end index of arc (>= from + MIN_ARC_POINTS - 1) or 0 if no arc.
 // ============================================================================
@@ -262,10 +210,10 @@ size_t GCodeEngine::tryFitArc(const std::vector<Point2D>& pts, size_t from, size
 
     // Initial 3-point circle fit
     double ox, oy, r;
-    if (!fitCircle3(pts[from].X, pts[from].Y,
-                    pts[from + 1].X, pts[from + 1].Y,
-                    pts[from + 2].X, pts[from + 2].Y,
-                    ox, oy, r))
+    if (!arcmath::fitCircle3(pts[from].X, pts[from].Y,
+                             pts[from + 1].X, pts[from + 1].Y,
+                             pts[from + 2].X, pts[from + 2].Y,
+                             ox, oy, r))
         return 0;
 
     if (r < MIN_ARC_RADIUS || r > MAX_ARC_RADIUS)
@@ -305,10 +253,10 @@ size_t GCodeEngine::tryFitArc(const std::vector<Point2D>& pts, size_t from, size
 
     // Refit circle with first / mid / end for best accuracy
     size_t mid = (from + arcEnd) / 2;
-    if (!fitCircle3(pts[from].X, pts[from].Y,
-                    pts[mid].X, pts[mid].Y,
-                    pts[arcEnd].X, pts[arcEnd].Y,
-                    ox, oy, r))
+    if (!arcmath::fitCircle3(pts[from].X, pts[from].Y,
+                             pts[mid].X, pts[mid].Y,
+                             pts[arcEnd].X, pts[arcEnd].Y,
+                             ox, oy, r))
         return 0;
 
     if (r < MIN_ARC_RADIUS || r > MAX_ARC_RADIUS)
@@ -338,9 +286,9 @@ size_t GCodeEngine::tryFitArc(const std::vector<Point2D>& pts, size_t from, size
     // Re-determine direction after refit
     double turnSum = 0.0;
     for (size_t k = from + 1; k < arcEnd; k++) {
-        turnSum += turnAngle(pts[k-1].X, pts[k-1].Y,
-                             pts[k].X, pts[k].Y,
-                             pts[k+1].X, pts[k+1].Y);
+        turnSum += arcmath::turnAngle(pts[k-1].X, pts[k-1].Y,
+                          pts[k].X, pts[k].Y,
+                          pts[k+1].X, pts[k+1].Y);
     }
     ccw = (turnSum > 0);
 
@@ -363,9 +311,9 @@ size_t GCodeEngine::tryCollinearReduce(const std::vector<Point2D>& pts,
     for (size_t j = from + 2; j <= maxTo; j++) {
         bool allOk = true;
         for (size_t k = from + 1; k < j; k++) {
-            double d = pointToLineDist(pts[k].X, pts[k].Y,
-                                        pts[from].X, pts[from].Y,
-                                        pts[j].X, pts[j].Y);
+            double d = arcmath::pointToLineDist(pts[k].X, pts[k].Y,
+                                                pts[from].X, pts[from].Y,
+                                                pts[j].X, pts[j].Y);
             if (d > COLLINEAR_TOLERANCE) {
                 allOk = false;
                 break;
@@ -418,9 +366,9 @@ std::vector<GCodeMove> GCodeEngine::optimizePath(const PointCollection& rawPoint
     // turnAngles[k] = turn angle at filtered[k] (only valid for k=1..N-2)
     std::vector<double> turns(N, 0.0);
     for (size_t k = 1; k + 1 < N; k++) {
-        turns[k] = turnAngle(filtered[k-1].X, filtered[k-1].Y,
-                              filtered[k].X, filtered[k].Y,
-                              filtered[k+1].X, filtered[k+1].Y);
+        turns[k] = arcmath::turnAngle(filtered[k-1].X, filtered[k-1].Y,
+                          filtered[k].X, filtered[k].Y,
+                          filtered[k+1].X, filtered[k+1].Y);
     }
 
     // --- Step 3: Find corner indices (sharp turns that break smooth regions) ---

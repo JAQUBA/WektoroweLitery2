@@ -54,6 +54,7 @@ Port of the original C# WPF application [WektoroweLitery](https://github.com/JAQ
 - [PlatformIO](https://platformio.org/) (CLI or VS Code extension)
 - [JQB_MinGW](https://github.com/JAQUBA/JQB_MinGW) platform (downloaded automatically)
 - [JQB_WindowsLib](https://github.com/JAQUBA/JQB_WindowsLib) library (downloaded automatically)
+- Git (used by pre-build script to auto-download Clipper2 if missing)
 
 No manual compiler or library installation needed — PlatformIO resolves everything.
 
@@ -67,6 +68,8 @@ Output binary: `.pio/build/windows_x86/WektoroweLitery2.exe`
 
 Font files are copied to the output directory automatically by `scripts/copy_fonts.py`.
 
+Clipper2 is downloaded automatically on build (if missing) by JQB_CAMCommon library manifest (`library.json` → `build.extraScript`).
+
 ### `platformio.ini`
 
 ```ini
@@ -75,7 +78,10 @@ platform = https://github.com/JAQUBA/JQB_MinGW.git
 extra_scripts =
     post:scripts/copy_fonts.py
 lib_deps =
-    https://github.com/JAQUBA/JQB_WindowsLib.git
+    ../JQB_WindowsLib
+    ../JQB_CAMCommon
+lib_extra_dirs =
+    lib/Clipper2/CPP
 ```
 
 C++17, UNICODE, static linking, and library flags are added automatically by `compile_resources.py`.
