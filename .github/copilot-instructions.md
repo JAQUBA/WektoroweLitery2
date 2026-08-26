@@ -250,9 +250,9 @@ Tool presets are stored in a separate `tools.ini` file (not `config.ini`). Forma
 
 | Key pattern | Description | Example |
 |-------------|-------------|---------|
-| `tool_count` | Number of tool presets | `9` |
+| `tool_count` | Number of tool presets | `10` |
 | `tool_N_name` | Tool name | `V-bit 60deg 0.2mm` |
-| `tool_N_diameter` | Tool diameter [mm] | `0.200` |
+| `tool_N_diameter` | Tool diameter [mm] | `0.300` |
 | `tool_N_stepover` | Tool stepover [mm] | `0.10` |
 | `tool_N_cutDepth` | Cut depth [mm] (negative) | `-0.100` |
 | `tool_N_safeHeight` | Safe travel height [mm] | `1.00` |
@@ -260,7 +260,7 @@ Tool presets are stored in a separate `tools.ini` file (not `config.ini`). Forma
 | `tool_N_feedZ` | Z feed rate [mm/min] | `100.0` |
 | `active_tool` | Active tool index | `0` |
 
-Default presets created automatically on first run: V-bits (60°/30°), end mills (0.8/1.0/2.0 mm), drills (0.8/1.0 mm), laser (0.1 mm). Selecting a tool auto-populates diameter, stepover, text depth (from |cutDepth|) and safe Z fields.
+Default presets created automatically on first run: V-bits (60° 0.3/0.2/0.1 mm and 30° 0.1 mm), end mills (0.8/1.0/2.0 mm), drills (0.8/1.0 mm), laser (0.1 mm). The default font is `standard`. Selecting a tool auto-populates diameter, stepover, text depth (from |cutDepth|) and safe Z fields.
 
 ---
 

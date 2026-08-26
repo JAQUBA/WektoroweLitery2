@@ -126,6 +126,8 @@ static std::string intToStr(int n) {
 void loadSettings() {
     fontsDirectory = getFontsDirectory();
     activeFontName = config.getValue("font_name", "standard");
+    if (activeFontName.empty())
+        activeFontName = "standard";
     loadFont(activeFontName);
 
     currentFilePath = config.getValue("last_input_file", "");
@@ -175,6 +177,7 @@ void loadSettings() {
         }
     } else {
         // Default presets
+        toolPresets.push_back({"V-bit 60deg 0.3mm", "0.300", "0.15", "-0.150", "1.00", "400.0", "100.0"});
         toolPresets.push_back({"V-bit 60deg 0.2mm", "0.200", "0.10", "-0.100", "1.00", "300.0", "100.0"});
         toolPresets.push_back({"V-bit 60deg 0.1mm", "0.100", "0.05", "-0.050", "1.00", "200.0", "50.0"});
         toolPresets.push_back({"V-bit 30deg 0.1mm", "0.100", "0.05", "-0.080", "1.00", "250.0", "80.0"});
