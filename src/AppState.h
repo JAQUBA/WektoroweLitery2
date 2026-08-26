@@ -71,6 +71,9 @@ extern std::string     exportMaterialThickness;
 extern std::string     exportTextDepth;
 extern std::string     exportSafeHeight;
 extern bool            gridVisible;
+extern bool            rapidMovesVisible;
+extern bool            hudVisible;
+extern bool            vectorArrowsVisible;
 
 // Tool presets
 extern std::vector<ToolPreset> toolPresets;
@@ -82,6 +85,13 @@ extern double          workspaceHeight;
 
 // Editor splitter position (pixels from left edge of content area)
 extern int             editorWidth;
+
+// Main window placement (restored geometry + maximized flag)
+extern int             windowX;
+extern int             windowY;
+extern int             windowW;
+extern int             windowH;
+extern bool            windowMaximized;
 
 // ============================================================================
 // Helper functions
@@ -104,6 +114,12 @@ void doRenderPreview();
 void doExportGCode();
 void doToggleLogWindow();
 void doToggleGrid();
+void doToggleRapidMoves();
+void doToggleHUD();
+void doToggleVectorArrows();
+void doFitToContent();
+void doFitToWorkspace();
+void doResetView();
 void doNewFile();
 void doOpenFile();
 void doSaveFile();

@@ -25,6 +25,33 @@ public:
 
     const std::vector<TableRow>& getRows() const { return m_rows; }
 
+    bool getBoundingBox(double& minX, double& minY, double& maxX, double& maxY) const {
+        double gMinX = 1e9, gMinY = 1e9, gMaxX = -1e9, gMaxY = -1e9;
+        bool foundAny = false;
+
+        for (const auto& row : m_rows) {
+            for (const auto& plate : row.getNameplates()) {
+                double pMinX, pMinY, pMaxX, pMaxY;
+                if (plate.getBoundingBox(pMinX, pMinY, pMaxX, pMaxY)) {
+                    if (pMinX < gMinX) gMinX = pMinX;
+                    if (pMinY < gMinY) gMinY = pMinY;
+                    if (pMaxX > gMaxX) gMaxX = pMaxX;
+                    if (pMaxY > gMaxY) gMaxY = pMaxY;
+                    foundAny = true;
+                }
+            }
+        }
+
+        if (foundAny) {
+            minX = gMinX;
+            minY = gMinY;
+            maxX = gMaxX;
+            maxY = gMaxY;
+            return true;
+        }
+        return false;
+    }
+
 private:
     std::vector<TableRow> m_rows;
 };

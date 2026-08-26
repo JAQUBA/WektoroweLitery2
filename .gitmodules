@@ -1,0 +1,3 @@
+[submodule "lib/JQB_WindowsLib"]
+	path = lib/JQB_WindowsLib
+	url = https://github.com/JAQUBA/JQB_WindowsLib

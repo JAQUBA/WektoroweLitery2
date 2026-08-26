@@ -33,7 +33,7 @@ It is built for practical workshop use: quick editing, instant visual feedback, 
 - auto-render after edits with debounce
 - error highlighting for invalid lines
 - draggable editor/canvas splitter
-- simple semicolon-based layout format
+- simple block-based VL2 layout format with legacy TXT import
 
 ### Font Engine
 
@@ -158,7 +158,63 @@ Help      → About...
 
 ## Layout Format
 
-The input format is intentionally compact and version-control friendly.
+New layouts use the readable block-based VL2 format. It uses sections and
+`key=value` properties, so repeated plate parameters are written once in a
+template. The file is UTF-8 and does not depend on indentation or an external
+parser library. A compact row writes one complete plate on one line:
+
+```text
+[row]
+pump: POMPA 1
+pump: POMPA 2
+control: STEROWANIE | ZDALNE
+```
+
+The `|` separator creates multiple text lines. Per-plate overrides can be
+written in the template selector, for example
+`pump(size=200x40,text=12,condensation=150): FALOWNIK 1`.
+Set `frame=false` in a template or selector for text without a visible frame.
+The `offset=x,y` value moves the text relative to the plate center and works
+for both framed and unframed plates. In a template, the short key `text=4`
+means text height; the row text remains after the colon.
+In VL2, `thickness` is the real stroke width in **mm** (unlike the legacy TXT
+format below, where `thickness` is an abstract stroke-width unit); the parser
+converts the mm value internally (`units = mm * 100 / text_height_mm`).
+
+Example:
+
+```text
+version=1
+
+[template pump]
+type=plate
+width=100
+height=30
+offset_x=0
+offset_y=4
+text_height=8
+condensation=100
+thickness=0.4
+frame=true
+
+[row]
+use=pump
+text=POMPA 1
+use=pump
+text=POMPA 2
+
+[row]
+use=pump
+text=POMPA 3
+```
+
+Use `type=multiline` with `line1=...`, `line2=...` and so on for a plate
+that contains multiple text lines. A template can define line-specific
+properties such as `line1_offset_y` or `line2_condensation`. Use
+`type=empty` for a frame without text.
+
+The older semicolon-separated TXT format remains supported for existing
+files and can be converted manually to VL2.
 
 Commands:
 
@@ -169,7 +225,7 @@ Commands:
 | `tw` | text with frame |
 | `w` | frame only |
 
-Text rows use:
+Legacy TXT text rows use:
 
 ```text
 t;width;height;dx;dy;textH;condensation;thickness;text
@@ -229,6 +285,7 @@ Key traits:
 
 - `G21 G90 G17 G94 G54 G91.1` preamble
 - arc fitting for eligible segments
+- redundant rapid moves are skipped by tracking the current machine position
 - Z-based milling mode
 - `M03` / `M05` switching for laser mode
 - return-to-origin style epilog

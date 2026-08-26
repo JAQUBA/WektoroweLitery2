@@ -25,10 +25,13 @@ public:
     double maxX = 0.0;
     double textLeft_mm = 0.0;
     double textBottom_mm = 0.0;
+    double textOffsetX_mm = 0.0;
+    double textOffsetY_mm = 0.0;
 
     Nameplate() = default;
 
     void appendText(const std::string& txt, const LffFont& font);
+    bool getBoundingBox(double& minX, double& minY, double& maxX, double& maxY) const;
 
     const std::vector<VectorLetterEngine>& getLetters() const { return m_letters; }
 

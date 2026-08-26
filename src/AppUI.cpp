@@ -61,6 +61,11 @@ static bool shouldDeferErrorHighlight() {
 static LRESULT CALLBACK EditorParentSubclassProc(
     HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
     UINT_PTR, DWORD_PTR) {
+    // Reposition editor/splitter/canvas on window resize (incl. maximize/restore)
+    if (msg == WM_SIZE) {
+        doRelayout();
+    }
+
     // Editor auto-render on text change (debounced)
     if (msg == WM_COMMAND && HIWORD(wParam) == EN_CHANGE) {
         HWND hCtrl = (HWND)lParam;
@@ -221,6 +226,24 @@ void createUI(SimpleWindow* win) {
             exportSafeHeight = text;
         });
     win->add(fldSafeZ);
+
+    px += 115;
+
+    auto* btnFitContent = new Button(px, y, 90, 26, "Fit Content",
+        [](Button*) { doFitToContent(); });
+    styleBtn(win, btnFitContent, CLR_TOOL_BG, CLR_TOOL_TEXT, CLR_TOOL_HOVER);
+
+    px += 95;
+
+    auto* btnFitWorkspace = new Button(px, y, 95, 26, "Fit Workspace",
+        [](Button*) { doFitToWorkspace(); });
+    styleBtn(win, btnFitWorkspace, CLR_TOOL_BG, CLR_TOOL_TEXT, CLR_TOOL_HOVER);
+
+    px += 100;
+
+    auto* btnResetView = new Button(px, y, 75, 26, "Reset View",
+        [](Button*) { doResetView(); });
+    styleBtn(win, btnResetView, CLR_TOOL_BG, CLR_TOOL_TEXT, CLR_TOOL_HOVER);
 
     y += 30;
 

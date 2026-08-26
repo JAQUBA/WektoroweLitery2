@@ -52,4 +52,12 @@
 /* Workspace boundary */
 #define CLR_WORKSPACE_LINE  CLR_SURFACE3
 
+/* CAM / CAD visualization colors */
+#define CLR_RAPID_LINE      RGB(249, 226, 175)  /* Peach / Amber G0 rapid moves */
+#define CLR_ORIGIN_X        RGB(243, 139, 168)  /* Red for WCS X0 axis */
+#define CLR_ORIGIN_Y        RGB(166, 227, 161)  /* Green for WCS Y0 axis */
+#define CLR_TOOL_KERF       RGB(116, 199, 236)  /* Faint Sapphire/Blue for tool diameter */
+#define CLR_HUD_TEXT        RGB(186, 194, 222)  /* Text overlay HUD color */
+#define CLR_HUD_BG          RGB(24, 24, 37)     /* Dark background for HUD overlay */
+
 #endif /* THEME_H */

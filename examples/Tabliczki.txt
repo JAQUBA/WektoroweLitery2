@@ -1,0 +1,26 @@
+# Layout file format (semicolon-separated):
+# l                                                               — new row
+# t;  width; height; dx; dy; textH; condensation; thickness; text  — text only
+# tw; width; height; dx; dy; textH; condensation; thickness; text  — text + frame
+# w;  width; height                                               — frame only
+# Lines starting with # are ignored.
+
+tw; 45; 15; 0; 4; 4; 90; 10;POMPA P1;
+tw; 45; 15; 0; 4; 4; 90; 10;POMPA P2;
+tw; 45; 15; 0; 4; 4; 90; 10;PRACA;
+tw; 45; 15; 0; 4; 4; 90; 10;PRACA;
+L;
+tw; 45; 15; 0; 4; 4; 90; 10;PRACA;
+tw; 45; 15; 0; 4; 4; 90; 10;AWARIA;
+tw; 45; 15; 0; 4; 4; 90; 10;AWARIA;
+tw; 45; 15; 0; 4; 4; 90; 10; AWARIA;
+L;
+tw; 45; 15; 0; 4; 4; 90; 10; START;
+tw; 45; 15; 0; 4; 4; 90; 10; START;
+tw; 45; 15; 0; 4; 4; 90; 10; START;
+tw; 45; 15; 0; 4; 4; 90; 10; STOP;
+L;
+tw; 45; 15; 0; 4; 4; 90; 10; STOP;
+tw; 45; 15; 0; 4; 4; 90; 10; STOP;
+tw; 45; 15; 0; 4; 4; 90; 10; ZASILANIE;
+tw; 45; 15; 0; 4; 4; 65; 10; POMPA ODWODN;

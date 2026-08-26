@@ -31,10 +31,14 @@ void createAppMenu(SimpleWindow* win) {
 
     // --- View ---
     menuBar->addMenu(L"View", [](PopupMenu& m) {
+        m.addItem(L"Fit to content (Nameplates)", []() { doFitToContent(); });
+        m.addItem(L"Fit to workspace", []() { doFitToWorkspace(); });
+        m.addItem(L"Reset view", []() { doResetView(); });
+        m.addSeparator();
         m.addCheckItem(L"Show grid", gridVisible, [](bool) { doToggleGrid(); });
-        m.addItem(L"Reset view", []() {
-            if (canvas) canvas->resetView();
-        });
+        m.addCheckItem(L"Show rapid moves (G0)", rapidMovesVisible, [](bool) { doToggleRapidMoves(); });
+        m.addCheckItem(L"Show vector arrows", vectorArrowsVisible, [](bool) { doToggleVectorArrows(); });
+        m.addCheckItem(L"Show HUD overlay", hudVisible, [](bool) { doToggleHUD(); });
         m.addSeparator();
         m.addItem(L"Log window", []() { doToggleLogWindow(); });
     });

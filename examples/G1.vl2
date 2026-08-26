@@ -1,0 +1,56 @@
+# Vector Letters 2 layout
+version=1
+
+[template status]
+type=plate
+width=50
+height=20
+offset_x=0
+offset_y=4
+text_height=4
+condensation=100
+thickness=0.48
+frame=true
+
+[template remote]
+type=multiline
+width=50
+height=20
+offset_x=0
+thickness=0.48
+frame=true
+line1_offset_y=4
+line1_text_height=4
+line1_condensation=90
+line2_offset_y=-4
+line2_text_height=4
+line2_condensation=70
+
+[template control]
+type=multiline
+width=50
+height=20
+offset_x=0
+thickness=0.48
+frame=true
+line1_offset_y=6
+line1_text_height=4
+line1_condensation=90
+line2_offset_y=0
+line2_text_height=4
+line2_condensation=90
+line3_offset_y=-6
+line3_text_height=4
+line3_condensation=70
+
+[row]
+status: PRACA
+status: AWARIA
+status: STOP
+status: START
+
+[row]
+remote: STEROWANIE | ZDALNE-O-RĘCZNE
+
+[row]
+control: STEROWANIE | STEROWANIE | ZDALNE-O-RĘCZNE

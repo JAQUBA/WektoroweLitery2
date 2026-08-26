@@ -46,8 +46,8 @@ WektoroweLitery2/
 | **main.cpp** | `setup()` / `loop()` — window creation (1200×700), menu, UI, canvas init, `doRelayout()`, close handler saves settings |
 | **AppState** | `ToolPreset` struct. Global state: `currentDocument`, `activeFont`, tool presets, export params. Functions: `loadSettings()` / `saveSettings()`, `doRenderPreview()`, `doExportGCode()`, `doNewFile()` / `doOpenFile()` / `doSaveFile()` / `doSaveFileAs()`, `doShowToolPresets()`, `doShowWorkspaceSettings()`, `doRelayout()`, `applyActiveToolPreset()`, `loadFont()`, file dialogs, `logMsg()` |
 | **AppUI** | `createUI()` — Export button, tool/font selector popups, Material/Depth/Safe Z fields, output path field, RichEdit editor (Consolas 12pt, auto-render with 300 ms debounce), draggable splitter, `highlightEditorErrors()`, `showToolPopup()` / `showFontPopup()` |
-| **MenuHandler** | `createAppMenu()` — File (New, Open, Save, Save As, Export, Exit), View (grid, reset, log), Settings (tool presets, workspace), Help (About). The About dialog lists bundled libraries and their licenses. |
-| **CanvasWindow** (VectorCanvas) | Subclass of JQB_WindowsLib `CanvasWindow` — renders workspace bounds, documents (rows → nameplates → letter vectors + frames), `setDocument()`, `fitToContent()` |
+| **MenuHandler** | `createAppMenu()` — File (New, Open, Save, Save As, Export, Exit), View (fit to content, fit to workspace, reset view, grid, rapid moves, vector arrows, HUD, log), Settings (tool presets, workspace), Help (About). The About dialog lists bundled libraries and their licenses. |
+| **CanvasWindow** (VectorCanvas) | Subclass of JQB_WindowsLib `CanvasWindow` — renders workspace bounds, WCS origin indicator (X0, Y0), G0 rapid traverse paths, letter vectors + frames, start points & direction arrows, HUD overlay, `setDocument()`, `fitToContent()`, `fitToWorkspace()` |
 | **Font/VectorPoint** | Point struct: `x`, `y`, `alphaPrimary`, `alphaMean`, `widthFactor`, `hasSerif`, `isTerminator`, `options` |
 | **Font/LffFont** | LFF font parser: `load(path)` parses glyphs (header, polylines, arcs, references), `getGlyph(codePoint)`, `getLetterSpacing()`, `listFonts(dir)`. Structs: `LffGlyph` (codePoint, width, strokes), `LffPoint` (x, y, bulge) |
 | **Font/VectorLetterEngine** | Core engine: constructs from `LffGlyph` with scale/offset/tool params, `generateFullPath()` → `PointCollection` output. Steps: `computeAlphaPrimary()` → `computeAlphaMean()` → `drawSegmentAxis()` → `drawSegmentEnvelope()` (forward pass, endcap, reverse, startcap, multi-pass). Transforms: `multiplyX()`, `addX()` |
@@ -55,7 +55,7 @@ WektoroweLitery2/
 | **Document/TableRow** | Row of `Nameplate` objects: `addNameplate()`, `getNameplates()` |
 | **Document/Nameplate** | Fields: frame geometry, `text`, `textHeight_mm`, `condensation`, `thickness`, `diameter`, `stepover`, `hasFrame`. Method: `appendText(text, font)` — UTF-8 → Unicode, loads glyphs, applies scaling/condensation, centers in frame, generates envelope via VectorLetterEngine |
 | **Document/DocumentParser** | Parses semicolon-separated layout files: `t`/`tw`/`w`/`l` commands, decimal comma→dot conversion, UTF-8 BOM stripping, error line tracking |
-| **GCode/GCodeEngine** | GRBL export: preamble (`G21 G90 G17 G94 G54 G91.1`), G00/G01/G02/G03, greedy arc fitting (tolerance 0.01 mm), collinear reduction (0.005 mm), feed rate management (`F{feedZ}` on Z plunge, `F{feedXY}` on first XY), milling/laser mode, `exportDocument()` / `exportSingleFrame()`, optimization stats |
+| **GCode/GCodeEngine** | GRBL export: preamble (`G21 G90 G17 G94 G54 G91.1`), G00/G01/G02/G03, redundant rapid suppression using tracked machine position, greedy arc fitting (tolerance 0.01 mm), collinear reduction (0.005 mm), feed rate management (`F{feedZ}` on Z plunge, `F{feedXY}` on first XY), milling/laser mode, `exportDocument()` / `exportSingleFrame()`, optimization stats |
 
 ## Tech Stack
 
@@ -124,7 +124,51 @@ Help      → About...
 
 ---
 
-## Layout File Format (.TXT)
+## Layout File Formats (.VL2 and legacy .TXT)
+
+New layout files use the simple block-based `.vl2` format. It is UTF-8,
+versioned, independent of indentation, and uses `[section]` headers with
+`key=value` properties. Templates avoid repeating dimensions and support
+single-line plates (`type=plate`), multi-line plates (`type=multiline` with
+`line1`, `line2`, ...), and empty frames (`type=empty`). Example:
+
+```
+version=1
+
+[template pump]
+type=plate
+width=100
+height=30
+offset_x=0
+offset_y=4
+text_height=8
+condensation=100
+thickness=0.4
+frame=true
+
+[row]
+use=pump
+text=POMPA 1
+use=pump
+text=POMPA 2
+```
+
+The parser expands VL2 into the existing `Document` model, so geometry and
+G-Code generation remain format-independent. Legacy `.txt` files using `t`,
+`tw`, `w`, and `l` remain supported and are used for compatibility tests.
+For daily editing, VL2 also supports compact rows such as `pump: POMPA 1` and
+`control: STEROWANIE | ZDALNE`; `|` separates multiline text. Local overrides
+are written in the selector, for example
+`pump(size=200x40,text=12): FALOWNIK 1`.
+Set `frame=false` for text without a visible frame. `offset=x,y` moves text
+relative to the plate center for both framed and unframed plates. In a
+template, short `text=4` means text height; row content remains after `:`.
+In `.vl2`, `thickness` is the **real stroke width in mm** (e.g. `0.4` for a
+0.4 mm wide line) — unlike the legacy `.txt` format below, where `thickness`
+is an abstract stroke-width unit. `DocumentParser` converts the VL2 mm value
+to the legacy unit internally (`units = mm * 100 / text_height_mm`).
+
+## Legacy Layout File Format (.TXT)
 
 Semicolon-separated commands (lines starting with `#` are ignored as comments):
 - `l` — new row (line break)
@@ -242,6 +286,8 @@ M30
 | `grid_visible` | Show grid in canvas | `1` |
 | `workspace_w` / `workspace_h` | Machine workspace dimensions [mm] | `300` / `200` |
 | `editor_width` | Editor panel width [px] | `345` |
+| `window_maximized` | Main window starts maximized | `1` |
+| `window_x` / `window_y` / `window_w` / `window_h` | Restored (non-maximized) window position/size [px] | `-1` (unset — use OS default) |
 | `logwin_x/y/w/h` | Log window position/size | (auto) |
 
 ### Tool Presets (tools.ini)

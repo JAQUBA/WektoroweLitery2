@@ -27,6 +27,8 @@ static std::string fmtRPM(double val) {
     return buf;
 }
 
+static constexpr double POSITION_EPSILON = 0.0005;
+
 GCodeEngine::GCodeEngine() {
     init();
 }
@@ -38,7 +40,13 @@ void GCodeEngine::init() {
     m_totalMoves = 0;
     m_arcMoves = 0;
     m_reducedPoints = 0;
+    m_reducedRapidMoves = 0;
     m_needFeedXY = true;
+    m_positionKnown = false;
+    m_currentX = 0.0;
+    m_currentY = 0.0;
+    m_currentZ = 0.0;
+    m_laserOn = false;
 }
 
 void GCodeEngine::dumpToFile(const std::string& fileName) {
@@ -66,18 +74,22 @@ void GCodeEngine::prolog(double safeHeight) {
     }
 
     appendLine("G00 X0.000 Y0.000");
+    m_positionKnown = true;
+    m_currentX = 0.0;
+    m_currentY = 0.0;
+    if (!m_laserMode) m_currentZ = safeHeight;
 }
 
 void GCodeEngine::epilog(double safeHeight) {
     if (!m_laserMode) {
-        appendLine("G00 Z" + fmtF2(safeHeight));
+        idleZ(safeHeight);
         if (m_spindleRPM > 0.0)
             appendLine("M05");
     } else {
-        appendLine("M05");
+        idleZ(safeHeight);
     }
 
-    appendLine("G00 X0.000 Y0.000");
+    idleXY(0.0, 0.0);
     appendLine("M30");
 }
 
@@ -89,6 +101,11 @@ void GCodeEngine::workingZ(double z) {
         std::snprintf(buf, sizeof(buf), "M03");
     }
     appendLine(buf);
+    if (!m_laserMode) {
+        m_currentZ = z;
+    } else {
+        m_laserOn = true;
+    }
 }
 
 void GCodeEngine::workingXY(double x, double y) {
@@ -100,22 +117,45 @@ void GCodeEngine::workingXY(double x, double y) {
         std::snprintf(buf, sizeof(buf), "G01 X%s Y%s", fmtF3(x).c_str(), fmtF3(y).c_str());
     }
     appendLine(buf);
+    m_currentX = x;
+    m_currentY = y;
 }
 
 void GCodeEngine::idleZ(double z) {
     char buf[64];
-    if (!m_laserMode) {
-        std::snprintf(buf, sizeof(buf), "G00 Z%s", fmtF2(z).c_str());
-    } else {
+    if (m_laserMode) {
+        if (!m_laserOn) {
+            m_reducedRapidMoves++;
+            return;
+        }
         std::snprintf(buf, sizeof(buf), "M05");
+        appendLine(buf);
+        m_laserOn = false;
+        return;
     }
+
+    if (m_positionKnown && std::fabs(m_currentZ - z) <= POSITION_EPSILON) {
+        m_reducedRapidMoves++;
+        return;
+    }
+    std::snprintf(buf, sizeof(buf), "G00 Z%s", fmtF2(z).c_str());
     appendLine(buf);
+    m_currentZ = z;
 }
 
 void GCodeEngine::idleXY(double x, double y) {
+    if (m_positionKnown &&
+        std::fabs(m_currentX - x) <= POSITION_EPSILON &&
+        std::fabs(m_currentY - y) <= POSITION_EPSILON) {
+        m_reducedRapidMoves++;
+        return;
+    }
+
     char buf[64];
     std::snprintf(buf, sizeof(buf), "G00 X%s Y%s", fmtF3(x).c_str(), fmtF3(y).c_str());
     appendLine(buf);
+    m_currentX = x;
+    m_currentY = y;
 }
 
 // ============================================================================

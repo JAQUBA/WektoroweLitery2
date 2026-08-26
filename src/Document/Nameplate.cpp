@@ -91,8 +91,8 @@ void Nameplate::appendText(const std::string& txt, const LffFont& font) {
 
     // Center text within frame
     m_textWidth_mm = (m_cursorX / (SHIFT_Y_BASE / textHeight_mm)) / 2.0;
-    textLeft_mm = m_frameCenterX_mm - m_textWidth_mm;
-    textBottom_mm = m_frameCenterY_mm - (textHeight_mm / 2.0);
+    textLeft_mm = m_frameCenterX_mm - m_textWidth_mm + textOffsetX_mm;
+    textBottom_mm = m_frameCenterY_mm - (textHeight_mm / 2.0) + textOffsetY_mm;
 
     m_cursorX = textLeft_mm * (SHIFT_Y_BASE / textHeight_mm);
     m_cursorY = ((frameBottom_mm / 2.0) + textBottom_mm) * (SHIFT_Y_BASE / textHeight_mm);
@@ -109,4 +109,43 @@ void Nameplate::appendText(const std::string& txt, const LffFont& font) {
         }
         m_letters[i].generateFullPath();
     }
+}
+
+bool Nameplate::getBoundingBox(double& outMinX, double& outMinY, double& outMaxX, double& outMaxY) const {
+    double bMinX = 1e9, bMinY = 1e9, bMaxX = -1e9, bMaxY = -1e9;
+    bool foundAny = false;
+
+    if (hasFrame && frameWidth_mm > 0.0 && frameHeight_mm > 0.0) {
+        bMinX = frameLeft_mm;
+        bMinY = frameBottom_mm;
+        bMaxX = frameLeft_mm + frameWidth_mm;
+        bMaxY = frameBottom_mm + frameHeight_mm;
+        foundAny = true;
+    }
+
+    if (textHeight_mm > 0.0) {
+        double scale = 3000.0 / textHeight_mm;
+        for (const auto& letter : m_letters) {
+            for (const auto& segment : letter.getPointCollections()) {
+                for (const auto& pt : segment) {
+                    double wx = pt.X / scale;
+                    double wy = pt.Y / scale;
+                    if (wx < bMinX) bMinX = wx;
+                    if (wy < bMinY) bMinY = wy;
+                    if (wx > bMaxX) bMaxX = wx;
+                    if (wy > bMaxY) bMaxY = wy;
+                    foundAny = true;
+                }
+            }
+        }
+    }
+
+    if (foundAny) {
+        outMinX = bMinX;
+        outMinY = bMinY;
+        outMaxX = bMaxX;
+        outMaxY = bMaxY;
+        return true;
+    }
+    return false;
 }

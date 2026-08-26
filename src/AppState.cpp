@@ -52,10 +52,19 @@ std::string    exportMaterialThickness = "1,50";
 std::string    exportTextDepth = "0,20";
 std::string    exportSafeHeight = "2,00";
 bool           gridVisible   = true;
+bool           rapidMovesVisible = true;
+bool           hudVisible    = true;
+bool           vectorArrowsVisible = true;
 
 double         workspaceWidth  = 300.0;
 double         workspaceHeight = 200.0;
 int            editorWidth     = 345;
+
+int            windowX          = -1;
+int            windowY          = -1;
+int            windowW          = -1;
+int            windowH          = -1;
+bool           windowMaximized  = true;  // default: start maximized
 
 std::vector<ToolPreset> toolPresets;
 int            activeToolIndex = 0;
@@ -135,6 +144,9 @@ void loadSettings() {
     lastOutputFile = config.getValue("last_output_file", "");
     lastOutputDir = config.getValue("last_output_dir", "");
     gridVisible   = config.getValue("grid_visible", "1") == "1";
+    rapidMovesVisible = config.getValue("rapid_moves_visible", "0") == "1";
+    hudVisible    = config.getValue("hud_visible", "0") == "0";
+    vectorArrowsVisible = config.getValue("vector_arrows_visible", "0") == "1";
 
     // Load tool presets from tools.ini
     int toolCount = 0;
@@ -225,6 +237,12 @@ void loadSettings() {
     if (ew < 100) ew = 100;
     if (ew > 800) ew = 800;
     editorWidth = ew;
+
+    windowMaximized = config.getValue("window_maximized", "1") == "1";
+    try { windowX = std::stoi(config.getValue("window_x", "-1")); } catch (...) { windowX = -1; }
+    try { windowY = std::stoi(config.getValue("window_y", "-1")); } catch (...) { windowY = -1; }
+    try { windowW = std::stoi(config.getValue("window_w", "-1")); } catch (...) { windowW = -1; }
+    try { windowH = std::stoi(config.getValue("window_h", "-1")); } catch (...) { windowH = -1; }
 }
 
 void saveSettings() {
@@ -233,6 +251,9 @@ void saveSettings() {
     config.setValue("last_output_file", lastOutputFile);
     config.setValue("last_output_dir", lastOutputDir);
     config.setValue("grid_visible", gridVisible ? "1" : "0");
+    config.setValue("rapid_moves_visible", rapidMovesVisible ? "1" : "0");
+    config.setValue("hud_visible", hudVisible ? "1" : "0");
+    config.setValue("vector_arrows_visible", vectorArrowsVisible ? "1" : "0");
     config.setValue("font_name", activeFontName);
 
     // Save tool presets to tools.ini
@@ -267,6 +288,24 @@ void saveSettings() {
         _snprintf(buf, 16, "%d", editorWidth);
         config.setValue("editor_width", buf);
     }
+
+    // Capture current window placement (restored/normal rect, not the maximized one)
+    if (window) {
+        WINDOWPLACEMENT wp = {};
+        wp.length = sizeof(WINDOWPLACEMENT);
+        if (GetWindowPlacement(window->getHandle(), &wp)) {
+            windowMaximized = (wp.showCmd == SW_SHOWMAXIMIZED);
+            windowX = wp.rcNormalPosition.left;
+            windowY = wp.rcNormalPosition.top;
+            windowW = wp.rcNormalPosition.right - wp.rcNormalPosition.left;
+            windowH = wp.rcNormalPosition.bottom - wp.rcNormalPosition.top;
+        }
+    }
+    config.setValue("window_maximized", windowMaximized ? "1" : "0");
+    config.setValue("window_x", intToStr(windowX));
+    config.setValue("window_y", intToStr(windowY));
+    config.setValue("window_w", intToStr(windowW));
+    config.setValue("window_h", intToStr(windowH));
 }
 
 // ============================================================================
@@ -335,7 +374,7 @@ void doNewFile() {
 
 void doOpenFile() {
     std::string path = FileDialogs::openFileDialogUTF8(window->getHandle(),
-        L"Layout files (*.txt)\0*.txt\0All files (*.*)\0*.*\0",
+        L"Layout files (*.vl2;*.txt)\0*.vl2;*.txt\0VL2 files (*.vl2)\0*.vl2\0Legacy TXT files (*.txt)\0*.txt\0All files (*.*)\0*.*\0",
         L"Open layout file", lastInputDir);
     if (path.empty()) return;
 
@@ -375,8 +414,8 @@ void doSaveFile() {
 
 void doSaveFileAs() {
     std::string path = FileDialogs::saveFileDialogUTF8(window->getHandle(),
-        L"Layout files (*.txt)\0*.txt\0All files (*.*)\0*.*\0",
-        L"Save layout file as", L"txt", lastInputDir);
+        L"VL2 layout files (*.vl2)\0*.vl2\0Legacy TXT files (*.txt)\0*.txt\0All files (*.*)\0*.*\0",
+        L"Save layout file as", L"vl2", lastInputDir);
     if (path.empty()) return;
 
     currentFilePath = path;
@@ -510,10 +549,11 @@ void doExportGCode() {
         int lines = total - arcs;
         int raw = gce.getTotalRawPoints();
         int dupes = gce.getReducedPoints();
+        int rapidDupes = gce.getReducedRapidMoves();
         wchar_t sBuf[256];
         _snwprintf_s(sBuf, 256, _TRUNCATE,
-            L"Optimization: %d moves (%d arcs G2/G3, %d lines G01) from %d raw points (%d short moves filtered)",
-            total, arcs, lines, raw, dupes);
+            L"Optimization: %d moves (%d arcs G2/G3, %d lines G01) from %d raw points (%d short moves filtered, %d redundant rapids skipped)",
+            total, arcs, lines, raw, dupes, rapidDupes);
         logMsg(sBuf);
     }
 
@@ -542,6 +582,45 @@ void doToggleGrid() {
     gridVisible = !gridVisible;
     if (canvas) {
         canvas->setGridVisible(gridVisible);
+    }
+}
+
+void doToggleRapidMoves() {
+    rapidMovesVisible = !rapidMovesVisible;
+    if (canvas) {
+        canvas->setRapidMovesVisible(rapidMovesVisible);
+    }
+}
+
+void doToggleHUD() {
+    hudVisible = !hudVisible;
+    if (canvas) {
+        canvas->setHUDVisible(hudVisible);
+    }
+}
+
+void doToggleVectorArrows() {
+    vectorArrowsVisible = !vectorArrowsVisible;
+    if (canvas) {
+        canvas->setVectorArrowsVisible(vectorArrowsVisible);
+    }
+}
+
+void doFitToContent() {
+    if (canvas) {
+        canvas->fitToContent();
+    }
+}
+
+void doFitToWorkspace() {
+    if (canvas) {
+        canvas->fitToWorkspace();
+    }
+}
+
+void doResetView() {
+    if (canvas) {
+        canvas->resetView();
     }
 }
 

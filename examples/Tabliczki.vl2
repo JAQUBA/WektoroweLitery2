@@ -1,0 +1,35 @@
+# Vector Letters 2 layout
+version=1
+
+[template label]
+type=plate
+size=45x15
+offset=0,4
+text=4
+condensation=90
+thickness=0.4
+frame=true
+
+[row]
+label: POMPA P1
+label: POMPA P2
+label: PRACA
+label: PRACA
+
+[row]
+label: PRACA
+label: AWARIA
+label: AWARIA
+label: AWARIA
+
+[row]
+label: START
+label: START
+label: START
+label: STOP
+
+[row]
+label: STOP
+label: STOP
+label: ZASILANIE
+label(text=4,condensation=65): POMPA ODWODN

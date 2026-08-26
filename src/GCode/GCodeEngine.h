@@ -40,6 +40,7 @@ public:
     int getTotalMoves() const { return m_totalMoves; }
     int getArcMoves() const { return m_arcMoves; }
     int getReducedPoints() const { return m_reducedPoints; }
+    int getReducedRapidMoves() const { return m_reducedRapidMoves; }
 
 private:
     std::ostringstream m_buffer;
@@ -48,12 +49,18 @@ private:
     double m_feedZ  = 100.0;
     double m_spindleRPM = 0.0;
     bool m_needFeedXY = true;   // emit F on first working XY move after Z plunge
+    bool m_positionKnown = false;
+    double m_currentX = 0.0;
+    double m_currentY = 0.0;
+    double m_currentZ = 0.0;
+    bool m_laserOn = false;
 
     // Optimization statistics
     int m_totalRawPoints = 0;
     int m_totalMoves = 0;
     int m_arcMoves = 0;
     int m_reducedPoints = 0;
+    int m_reducedRapidMoves = 0;
 
     void init();
     void dumpToFile(const std::string& fileName);

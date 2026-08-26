@@ -24,4 +24,4 @@ def copy_fonts_to_build(source, target, env):
     lff_count = len([f for f in os.listdir(dst_fonts) if f.endswith(".lff")])
     print(f"[copy_fonts] Copied {lff_count} font files to {dst_fonts}")
 
-env.AddPostAction("buildprog", copy_fonts_to_build)
+env.AddPostAction("$BUILD_DIR/${PROGNAME}.exe", copy_fonts_to_build)

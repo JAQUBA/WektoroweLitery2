@@ -37,6 +37,16 @@ void setup() {
     // --- Menu bar ---
     createAppMenu(window);
 
+    // --- Restore window position/size and maximized state (default: maximized) ---
+    // Must run after setMenu(), which resizes the window back to its construction size.
+    {
+        HWND hwnd = window->getHandle();
+        if (windowW > 0 && windowH > 0) {
+            MoveWindow(hwnd, windowX, windowY, windowW, windowH, FALSE);
+        }
+        ShowWindow(hwnd, windowMaximized ? SW_MAXIMIZE : SW_SHOWNORMAL);
+    }
+
     // --- UI components (toolbar + editor + splitter) ---
     createUI(window);
 
@@ -47,6 +57,9 @@ void setup() {
     canvas->setGridColor(CLR_GRID_LINE);
     canvas->setGridVisible(gridVisible);
     canvas->setGridExtent(workspaceWidth, workspaceHeight);
+    canvas->setRapidMovesVisible(rapidMovesVisible);
+    canvas->setHUDVisible(hudVisible);
+    canvas->setVectorArrowsVisible(vectorArrowsVisible);
 
     // Position editor + splitter + canvas
     doRelayout();

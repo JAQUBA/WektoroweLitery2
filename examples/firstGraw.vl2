@@ -1,0 +1,119 @@
+# Vector Letters 2 layout
+version=1
+
+[template cabinet]
+type=multiline
+width=100
+height=40
+offset_x=0
+thickness=1.08
+frame=true
+line1_offset_y=8
+line1_text_height=9
+line1_condensation=55
+line2_offset_y=-8
+line2_text_height=9
+line2_condensation=100
+
+[template connector]
+type=plate
+width=100
+height=40
+offset_x=0
+offset_y=4
+text_height=9
+condensation=80
+thickness=1.08
+frame=true
+
+[template transformer]
+type=multiline
+width=50
+height=20
+offset_x=0
+thickness=0.48
+frame=true
+line1_offset_y=4
+line1_text_height=4
+line1_condensation=75
+line2_offset_y=-4
+line2_text_height=4
+line2_condensation=80
+
+[template coupling]
+type=plate
+width=50
+height=20
+offset_x=0
+offset_y=4
+text_height=5
+condensation=100
+thickness=0.6
+frame=true
+
+[template unit]
+type=plate
+width=50
+height=20
+offset_x=0
+offset_y=4
+text_height=4
+condensation=100
+thickness=0.48
+frame=true
+
+[template small-cabinet]
+type=multiline
+width=50
+height=20
+offset_x=0
+thickness=0.48
+frame=true
+line1_offset_y=4
+line1_text_height=4
+line1_condensation=65
+line2_offset_y=-4
+line2_text_height=4
+line2_condensation=70
+
+[row]
+cabinet: SZAFA AUTOMATYKI | SA
+cabinet: ROZDZIELNICA | RG
+
+[row]
+connector: ZŁĄCZE ZKR.3
+connector: ZŁĄCZE ZKR.7
+
+[row]
+connector: ZŁĄCZE ZKR.9
+connector: ZŁĄCZE ZKR.10
+
+[row]
+transformer: TRANSFORMATOR | TR1
+transformer: TRANSFORMATOR | TR1
+transformer: TRANSFORMATOR | TR2
+transformer: TRANSFORMATOR | TR2
+
+[row]
+coupling: SPRZĘGŁO
+coupling: SPRZĘGŁO
+unit: AGREGAT G1
+unit: AGREGAT G1
+
+[row]
+unit: SZR
+unit: ZŁĄCZE ZKR.3
+unit: ZŁĄCZE ZKR.7
+unit: ZŁĄCZE ZKR.9
+
+[row]
+unit: ZŁĄCZE ZKR.10
+unit: TABLICA TB0
+unit: TABLICA TB1
+unit: TABLICA TPR
+
+[row]
+unit: TABLICA TK
+small-cabinet: SZAFA AUTOMATYKI | SA
+small-cabinet: TABLICA AGREGATU | TG1
+small-cabinet: WYŁĄCZNIK | AWARYJNY
