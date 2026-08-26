@@ -29,6 +29,7 @@ struct ToolPreset {
     std::string safeHeight;
     std::string feedXY;
     std::string feedZ;
+    std::string spindleRPM;
 };
 
 // ============================================================================

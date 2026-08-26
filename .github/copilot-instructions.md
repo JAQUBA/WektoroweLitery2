@@ -254,13 +254,14 @@ Tool presets are stored in a separate `tools.ini` file (not `config.ini`). Forma
 | `tool_N_name` | Tool name | `V-bit 60deg 0.2mm` |
 | `tool_N_diameter` | Tool diameter [mm] | `0.300` |
 | `tool_N_stepover` | Tool stepover [mm] | `0.10` |
-| `tool_N_cutDepth` | Cut depth [mm] (negative) | `-0.100` |
-| `tool_N_safeHeight` | Safe travel height [mm] | `1.00` |
+| `tool_N_cutDepth` | Legacy cut depth [mm] (not applied automatically) | `-0.100` |
+| `tool_N_safeHeight` | Legacy safe travel height [mm] (not applied automatically) | `1.00` |
 | `tool_N_feedXY` | XY feed rate [mm/min] | `300.0` |
 | `tool_N_feedZ` | Z feed rate [mm/min] | `100.0` |
+| `tool_N_spindleRPM` | Spindle speed [RPM] | `12000` |
 | `active_tool` | Active tool index | `0` |
 
-Default presets created automatically on first run: V-bits (60° 0.3/0.2/0.1 mm and 30° 0.1 mm), end mills (0.8/1.0/2.0 mm), drills (0.8/1.0 mm), laser (0.1 mm). The default font is `standard`. Selecting a tool auto-populates diameter, stepover, text depth (from |cutDepth|) and safe Z fields.
+Default presets created automatically on first run: V-bits (60° 0.3/0.2/0.1 mm and 30° 0.1 mm), end mills (0.8/1.0/2.0 mm), drills (0.8/1.0 mm), laser (0.1 mm). The default font is `standard`. Selecting a tool auto-populates diameter, stepover, feed rates, and spindle RPM. Engraving depth and safe Z remain operation settings. For milling, G-Code emits `S<RPM> M03` and ends with `M05`; laser mode uses `M03`/`M05` without spindle RPM.
 
 ---
 

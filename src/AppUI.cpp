@@ -41,6 +41,22 @@ static int  splitterDragStartEditorW = 0;
 static const UINT_PTR RENDER_TIMER_ID = 42;
 static const UINT RENDER_DELAY_MS = 300;
 static bool editorChangeIgnore = false;  // suppress EN_CHANGE during setEditorText
+static const UINT_PTR ERROR_HIGHLIGHT_TIMER_ID = 43;
+static const UINT ERROR_HIGHLIGHT_DELAY_MS = 120;
+static ULONGLONG lastEditorSelectionTick = 0;
+static std::vector<int> pendingErrorLines;
+static bool hasPendingErrorHighlight = false;
+
+static bool shouldDeferErrorHighlight() {
+    if (!hEditor) return false;
+    if (GetFocus() != hEditor) return false;
+
+    // Defer while selection is actively being manipulated.
+    bool leftMouseDown = (GetKeyState(VK_LBUTTON) & 0x8000) != 0;
+    ULONGLONG now = GetTickCount64();
+    bool recentSelectionActivity = (now - lastEditorSelectionTick) < 250;
+    return leftMouseDown || recentSelectionActivity;
+}
 
 static LRESULT CALLBACK EditorParentSubclassProc(
     HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
@@ -53,10 +69,27 @@ static LRESULT CALLBACK EditorParentSubclassProc(
         }
     }
 
-    if (msg == WM_TIMER && wParam == RENDER_TIMER_ID) {
-        TimerUtils::stopTimer(hwnd, RENDER_TIMER_ID);
-        doRenderPreview();
-        return 0;
+    if (msg == WM_NOTIFY) {
+        NMHDR* nmh = reinterpret_cast<NMHDR*>(lParam);
+        if (nmh && nmh->hwndFrom == hEditor && nmh->code == EN_SELCHANGE) {
+            lastEditorSelectionTick = GetTickCount64();
+        }
+    }
+
+    if (msg == WM_TIMER) {
+        if (wParam == RENDER_TIMER_ID) {
+            TimerUtils::stopTimer(hwnd, RENDER_TIMER_ID);
+            doRenderPreview();
+            return 0;
+        }
+
+        if (wParam == ERROR_HIGHLIGHT_TIMER_ID) {
+            TimerUtils::stopTimer(hwnd, ERROR_HIGHLIGHT_TIMER_ID);
+            if (hasPendingErrorHighlight) {
+                highlightEditorErrors(pendingErrorLines);
+            }
+            return 0;
+        }
     }
 
     return DefSubclassProc(hwnd, msg, wParam, lParam);
@@ -368,22 +401,38 @@ void updateFontButtonText() {
 void highlightEditorErrors(const std::vector<int>& errorLines) {
     if (!hEditor) return;
 
+    if (shouldDeferErrorHighlight()) {
+        pendingErrorLines = errorLines;
+        hasPendingErrorHighlight = true;
+        if (window) {
+            TimerUtils::restartDebounceTimer(window->getHandle(), ERROR_HIGHLIGHT_TIMER_ID, ERROR_HIGHLIGHT_DELAY_MS);
+        }
+        return;
+    }
+
+    hasPendingErrorHighlight = false;
+
     SendMessageW(hEditor, WM_SETREDRAW, FALSE, 0);
 
     // Save current selection
-    CHARRANGE crOld;
+    CHARRANGE crOld = { 0, 0 };
     SendMessageW(hEditor, EM_EXGETSEL, 0, (LPARAM)&crOld);
 
-    // Reset all text to default format (no underline, normal color)
-    CHARRANGE crAll = { 0, -1 };
-    SendMessageW(hEditor, EM_EXSETSEL, 0, (LPARAM)&crAll);
+    // Clamp selection to current text length in case a previous edit changed bounds.
+    LONG textLen = (LONG)GetWindowTextLengthW(hEditor);
+    if (crOld.cpMin < 0) crOld.cpMin = 0;
+    if (crOld.cpMax < 0) crOld.cpMax = 0;
+    if (crOld.cpMin > textLen) crOld.cpMin = textLen;
+    if (crOld.cpMax > textLen) crOld.cpMax = textLen;
+    if (crOld.cpMax < crOld.cpMin) crOld.cpMax = crOld.cpMin;
 
+    // Reset all text to default format (no underline, normal color)
     CHARFORMAT2W cfDefault = {};
     cfDefault.cbSize = sizeof(cfDefault);
     cfDefault.dwMask = CFM_COLOR | CFM_UNDERLINE;
     cfDefault.crTextColor = CLR_EDITOR_TEXT;
     cfDefault.dwEffects = 0;
-    SendMessageW(hEditor, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cfDefault);
+    SendMessageW(hEditor, EM_SETCHARFORMAT, SCF_ALL, (LPARAM)&cfDefault);
 
     // Apply error format to each error line
     if (!errorLines.empty()) {
@@ -407,8 +456,10 @@ void highlightEditorErrors(const std::vector<int>& errorLines) {
 
     // Restore caret and set typing format to default
     SendMessageW(hEditor, EM_EXSETSEL, 0, (LPARAM)&crOld);
-    SendMessageW(hEditor, EM_SETCHARFORMAT, SCF_SELECTION, (LPARAM)&cfDefault);
+    SendMessageW(hEditor, EM_SETCHARFORMAT, SCF_DEFAULT, (LPARAM)&cfDefault);
+    SendMessageW(hEditor, EM_HIDESELECTION, FALSE, 0);
 
     SendMessageW(hEditor, WM_SETREDRAW, TRUE, 0);
-    InvalidateRect(hEditor, NULL, TRUE);
+    InvalidateRect(hEditor, NULL, FALSE);
+    UpdateWindow(hEditor);
 }

@@ -154,6 +154,7 @@ void loadSettings() {
                 toolConfig.setValue(p + "safeHeight", config.getValue(p + "safeHeight", "5.00"));
                 toolConfig.setValue(p + "feedXY",     config.getValue(p + "feedXY", "300.0"));
                 toolConfig.setValue(p + "feedZ",      config.getValue(p + "feedZ", "100.0"));
+                toolConfig.setValue(p + "spindleRPM", config.getValue(p + "spindleRPM", "0"));
             }
             toolConfig.setValue("tool_count", intToStr(legacyToolCount));
             toolConfig.setValue("active_tool", config.getValue("active_tool", "0"));
@@ -173,20 +174,21 @@ void loadSettings() {
             tp.safeHeight = toolConfig.getValue(p + "safeHeight", "5.00");
             tp.feedXY = toolConfig.getValue(p + "feedXY", "300.0");
             tp.feedZ = toolConfig.getValue(p + "feedZ", "100.0");
+            tp.spindleRPM = toolConfig.getValue(p + "spindleRPM", "0");
             toolPresets.push_back(tp);
         }
     } else {
         // Default presets
-        toolPresets.push_back({"V-bit 60deg 0.3mm", "0.300", "0.15", "-0.150", "1.00", "400.0", "100.0"});
-        toolPresets.push_back({"V-bit 60deg 0.2mm", "0.200", "0.10", "-0.100", "1.00", "300.0", "100.0"});
-        toolPresets.push_back({"V-bit 60deg 0.1mm", "0.100", "0.05", "-0.050", "1.00", "200.0", "50.0"});
-        toolPresets.push_back({"V-bit 30deg 0.1mm", "0.100", "0.05", "-0.080", "1.00", "250.0", "80.0"});
-        toolPresets.push_back({"End mill 0.8mm",    "0.800", "0.40", "-0.150", "2.00", "400.0", "100.0"});
-        toolPresets.push_back({"End mill 1.0mm",    "1.000", "0.50", "-0.200", "2.00", "400.0", "100.0"});
-        toolPresets.push_back({"End mill 2.0mm",    "2.000", "1.00", "-0.500", "2.00", "500.0", "150.0"});
-        toolPresets.push_back({"Drill 0.8mm",       "0.800", "0.40", "-1.800", "2.00", "300.0", "50.0"});
-        toolPresets.push_back({"Drill 1.0mm",       "1.000", "0.50", "-1.800", "2.00", "300.0", "50.0"});
-        toolPresets.push_back({"Laser 0.1mm",       "0.100", "0.05", "0.000",  "1.00", "1000.0", "500.0"});
+        toolPresets.push_back({"V-bit 60deg 0.3mm", "0.300", "0.15", "-0.150", "1.00", "400.0", "100.0", "12000"});
+        toolPresets.push_back({"V-bit 60deg 0.2mm", "0.200", "0.10", "-0.100", "1.00", "300.0", "100.0", "12000"});
+        toolPresets.push_back({"V-bit 60deg 0.1mm", "0.100", "0.05", "-0.050", "1.00", "200.0", "50.0", "12000"});
+        toolPresets.push_back({"V-bit 30deg 0.1mm", "0.100", "0.05", "-0.080", "1.00", "250.0", "80.0", "12000"});
+        toolPresets.push_back({"End mill 0.8mm",    "0.800", "0.40", "-0.150", "2.00", "400.0", "100.0", "18000"});
+        toolPresets.push_back({"End mill 1.0mm",    "1.000", "0.50", "-0.200", "2.00", "400.0", "100.0", "18000"});
+        toolPresets.push_back({"End mill 2.0mm",    "2.000", "1.00", "-0.500", "2.00", "500.0", "150.0", "18000"});
+        toolPresets.push_back({"Drill 0.8mm",       "0.800", "0.40", "-1.800", "2.00", "300.0", "50.0", "12000"});
+        toolPresets.push_back({"Drill 1.0mm",       "1.000", "0.50", "-1.800", "2.00", "300.0", "50.0", "12000"});
+        toolPresets.push_back({"Laser 0.1mm",       "0.100", "0.05", "0.000",  "1.00", "1000.0", "500.0", "0"});
         // Save defaults to tools.ini
         toolConfig.setValue("tool_count", intToStr((int)toolPresets.size()));
         for (int i = 0; i < (int)toolPresets.size(); i++) {
@@ -198,6 +200,7 @@ void loadSettings() {
             toolConfig.setValue(p + "safeHeight", toolPresets[i].safeHeight);
             toolConfig.setValue(p + "feedXY", toolPresets[i].feedXY);
             toolConfig.setValue(p + "feedZ", toolPresets[i].feedZ);
+            toolConfig.setValue(p + "spindleRPM", toolPresets[i].spindleRPM);
         }
         toolConfig.setValue("active_tool", "0");
     }
@@ -243,6 +246,7 @@ void saveSettings() {
         toolConfig.setValue(p + "safeHeight", toolPresets[i].safeHeight);
         toolConfig.setValue(p + "feedXY", toolPresets[i].feedXY);
         toolConfig.setValue(p + "feedZ", toolPresets[i].feedZ);
+        toolConfig.setValue(p + "spindleRPM", toolPresets[i].spindleRPM);
     }
     toolConfig.setValue("active_tool", intToStr(activeToolIndex));
 
@@ -482,6 +486,9 @@ void doExportGCode() {
         tryParseDouble(toolPresets[activeToolIndex].feedZ, fz);
         exportDoc.feedXY_mm = fxy;
         exportDoc.feedZ_mm  = fz;
+        double rpm = 0.0;
+        tryParseDouble(toolPresets[activeToolIndex].spindleRPM, rpm);
+        exportDoc.spindleRPM = rpm;
     }
 
     // Log computed Z levels for verification
@@ -568,18 +575,6 @@ void applyActiveToolPreset() {
         const auto& tp = toolPresets[activeToolIndex];
         exportDiameter = tp.diameter;
         exportStepover = tp.stepover;
-
-        // Auto-populate cut depth (absolute value) and safe Z from tool preset
-        double d = 0;
-        if (tryParseDouble(tp.cutDepth, d)) {
-            if (d < 0) d = -d;
-            char buf[32];
-            _snprintf(buf, 32, "%.3f", d);
-            exportTextDepth = buf;
-            if (fldDepth) fldDepth->setText(buf);
-        }
-        exportSafeHeight = tp.safeHeight;
-        if (fldSafeZ) fldSafeZ->setText(tp.safeHeight.c_str());
     }
 }
 
@@ -598,10 +593,9 @@ static HWND s_hToolList = nullptr;
 static HWND s_hToolName = nullptr;
 static HWND s_hToolDia = nullptr;
 static HWND s_hToolStep = nullptr;
-static HWND s_hToolDepth = nullptr;
-static HWND s_hToolSafeZ = nullptr;
 static HWND s_hToolFeedXY = nullptr;
 static HWND s_hToolFeedZ = nullptr;
+static HWND s_hToolRPM = nullptr;
 static int  s_toolDlgSel = -1;
 
 static void toolDlgPopulateFields(int idx) {
@@ -609,20 +603,18 @@ static void toolDlgPopulateFields(int idx) {
         SetWindowTextW(s_hToolName, L"");
         SetWindowTextW(s_hToolDia, L"");
         SetWindowTextW(s_hToolStep, L"");
-        SetWindowTextW(s_hToolDepth, L"");
-        SetWindowTextW(s_hToolSafeZ, L"");
         SetWindowTextW(s_hToolFeedXY, L"");
         SetWindowTextW(s_hToolFeedZ, L"");
+        SetWindowTextW(s_hToolRPM, L"");
         return;
     }
     const auto& tp = toolPresets[idx];
     SetWindowTextW(s_hToolName, StringUtils::utf8ToWide(tp.name).c_str());
     SetWindowTextW(s_hToolDia, StringUtils::utf8ToWide(tp.diameter).c_str());
     SetWindowTextW(s_hToolStep, StringUtils::utf8ToWide(tp.stepover).c_str());
-    SetWindowTextW(s_hToolDepth, StringUtils::utf8ToWide(tp.cutDepth).c_str());
-    SetWindowTextW(s_hToolSafeZ, StringUtils::utf8ToWide(tp.safeHeight).c_str());
     SetWindowTextW(s_hToolFeedXY, StringUtils::utf8ToWide(tp.feedXY).c_str());
     SetWindowTextW(s_hToolFeedZ, StringUtils::utf8ToWide(tp.feedZ).c_str());
+    SetWindowTextW(s_hToolRPM, StringUtils::utf8ToWide(tp.spindleRPM).c_str());
 }
 
 static void toolDlgSaveFields(int idx) {
@@ -632,10 +624,9 @@ static void toolDlgSaveFields(int idx) {
     GetWindowTextW(s_hToolName, buf, 128); tp.name = StringUtils::wideToUtf8(buf);
     GetWindowTextW(s_hToolDia, buf, 128); tp.diameter = StringUtils::wideToUtf8(buf);
     GetWindowTextW(s_hToolStep, buf, 128); tp.stepover = StringUtils::wideToUtf8(buf);
-    GetWindowTextW(s_hToolDepth, buf, 128); tp.cutDepth = StringUtils::wideToUtf8(buf);
-    GetWindowTextW(s_hToolSafeZ, buf, 128); tp.safeHeight = StringUtils::wideToUtf8(buf);
     GetWindowTextW(s_hToolFeedXY, buf, 128); tp.feedXY = StringUtils::wideToUtf8(buf);
     GetWindowTextW(s_hToolFeedZ, buf, 128); tp.feedZ = StringUtils::wideToUtf8(buf);
+    GetWindowTextW(s_hToolRPM, buf, 128); tp.spindleRPM = StringUtils::wideToUtf8(buf);
 }
 
 static void toolDlgRefreshList(int selectIdx = -1) {
@@ -673,10 +664,9 @@ static LRESULT CALLBACK ToolPresetsDlgProc(
             addField(0, L"Name:",        s_hToolName,   101);
             addField(1, L"Diameter:",     s_hToolDia,    102);
             addField(2, L"Stepover:",     s_hToolStep,   103);
-            addField(3, L"Cut depth:",    s_hToolDepth,  104);
-            addField(4, L"Safe Z:",       s_hToolSafeZ,  105);
-            addField(5, L"Feed XY:",      s_hToolFeedXY, 106);
-            addField(6, L"Feed Z:",       s_hToolFeedZ,  107);
+            addField(3, L"Feed XY:",      s_hToolFeedXY, 106);
+            addField(4, L"Feed Z:",       s_hToolFeedZ,  107);
+            addField(5, L"Spindle RPM:",  s_hToolRPM,    108);
 
             CreateWindowExW(0, L"BUTTON", L"Add", WS_CHILD | WS_VISIBLE,
                 15, lbH + 20, 80, 28, hwnd, (HMENU)110, _core.hInstance, NULL);
@@ -725,6 +715,7 @@ static LRESULT CALLBACK ToolPresetsDlgProc(
                     newTp.safeHeight = "5.00";
                     newTp.feedXY = "300.0";
                     newTp.feedZ = "100.0";
+                    newTp.spindleRPM = "12000";
                     toolPresets.push_back(newTp);
                     int newIdx = (int)toolPresets.size() - 1;
                     toolDlgRefreshList(newIdx);

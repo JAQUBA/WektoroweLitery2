@@ -126,9 +126,9 @@ lib_deps =
 ## Quick Start
 
 1. Open or create a layout file.
-2. Choose a tool preset.
+2. Choose a tool preset; this sets the cutter diameter, stepover, and feed rates.
 3. Choose a font.
-4. Adjust material, depth, and safe Z.
+4. Adjust material thickness, engraving depth, and safe Z for the current operation.
 5. Inspect the preview.
 6. Export G-Code.
 
@@ -261,6 +261,13 @@ Presets bundle values such as:
 - safe height
 - XY feed
 - Z feed
+- spindle speed (RPM)
+
+Tool selection does not change the operation's engraving depth or safe Z. These
+values depend on the material and machining operation, so they are set in the
+toolbar and remain unchanged when switching tools. Legacy `cutDepth` and
+`safeHeight` entries in `tools.ini` are retained for compatibility but are not
+applied automatically.
 
 This keeps repeat jobs predictable and makes switching between CNC and laser setups much faster.
 

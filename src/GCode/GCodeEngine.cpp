@@ -21,6 +21,12 @@ static std::string fmtF3(double val) {
     return buf;
 }
 
+static std::string fmtRPM(double val) {
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%.0f", val);
+    return buf;
+}
+
 GCodeEngine::GCodeEngine() {
     init();
 }
@@ -32,6 +38,7 @@ void GCodeEngine::init() {
     m_totalMoves = 0;
     m_arcMoves = 0;
     m_reducedPoints = 0;
+    m_needFeedXY = true;
 }
 
 void GCodeEngine::dumpToFile(const std::string& fileName) {
@@ -53,6 +60,8 @@ void GCodeEngine::prolog(double safeHeight) {
     appendLine("G91.1");   // incremental arc center mode (I/J relative to start)
 
     if (!m_laserMode) {
+        if (m_spindleRPM > 0.0)
+            appendLine("S" + fmtRPM(m_spindleRPM) + " M03");
         appendLine("G00 Z" + fmtF2(safeHeight));
     }
 
@@ -62,6 +71,8 @@ void GCodeEngine::prolog(double safeHeight) {
 void GCodeEngine::epilog(double safeHeight) {
     if (!m_laserMode) {
         appendLine("G00 Z" + fmtF2(safeHeight));
+        if (m_spindleRPM > 0.0)
+            appendLine("M05");
     } else {
         appendLine("M05");
     }
@@ -114,7 +125,12 @@ void GCodeEngine::exportSingleFrame(const std::string& fileName, const Document&
                                      double left, double bottom,
                                      double width, double height) {
     init();
-    idleZ(doc.materialThickness_mm + doc.safeHeight_mm);
+    m_laserMode = doc.laserMode;
+    m_feedXY = doc.feedXY_mm;
+    m_feedZ = doc.feedZ_mm;
+    m_spindleRPM = doc.spindleRPM;
+    double safeZ = doc.materialThickness_mm + doc.safeHeight_mm;
+    prolog(safeZ);
     idleXY(left, bottom);
 
     workingZ(0.0);
@@ -124,6 +140,7 @@ void GCodeEngine::exportSingleFrame(const std::string& fileName, const Document&
     workingXY(left + width, bottom);
     workingXY(left, bottom);
 
+    epilog(safeZ);
     dumpToFile(fileName);
 }
 
@@ -135,6 +152,7 @@ void GCodeEngine::exportDocument(const std::string& fileName, const Document& do
     m_laserMode = doc.laserMode;
     m_feedXY = doc.feedXY_mm;
     m_feedZ  = doc.feedZ_mm;
+    m_spindleRPM = doc.spindleRPM;
 
     double safeZ = doc.materialThickness_mm + doc.safeHeight_mm;
     double textZ = doc.materialThickness_mm - doc.textDepth_mm;

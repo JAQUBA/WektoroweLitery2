@@ -46,6 +46,7 @@ private:
     bool m_laserMode = false;
     double m_feedXY = 300.0;
     double m_feedZ  = 100.0;
+    double m_spindleRPM = 0.0;
     bool m_needFeedXY = true;   // emit F on first working XY move after Z plunge
 
     // Optimization statistics
