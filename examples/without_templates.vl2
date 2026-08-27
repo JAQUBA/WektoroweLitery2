@@ -1,0 +1,23 @@
+version=1
+
+[default]
+type=plate
+size=100x30
+text_height=8
+thickness=0.4
+frame=true
+
+[template wide]
+type=plate
+size=140x30
+text_height=8
+thickness=0.4
+frame=true
+
+[row]
+: POMPA 1
+plate(size=80x20,text=6,frame=true): STEROWANIE
+wide: FALOWNIK
+
+[row]
+: POMPA 2

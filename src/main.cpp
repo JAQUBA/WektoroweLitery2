@@ -72,6 +72,7 @@ void setup() {
                                  std::istreambuf_iterator<char>());
             f.close();
             setEditorTextUI(content);
+            savedEditorContent = getEditorText();
         }
     }
     updateWindowTitle();

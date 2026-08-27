@@ -55,7 +55,7 @@ WektoroweLitery2/
 | **Document/TableRow** | Row of `Nameplate` objects: `addNameplate()`, `getNameplates()` |
 | **Document/Nameplate** | Fields: frame geometry, `text`, `textHeight_mm`, `condensation`, `thickness`, `diameter`, `stepover`, `hasFrame`. Method: `appendText(text, font)` — UTF-8 → Unicode, loads glyphs, applies scaling/condensation, centers in frame, generates envelope via VectorLetterEngine |
 | **Document/DocumentParser** | Parses semicolon-separated layout files: `t`/`tw`/`w`/`l` commands, decimal comma→dot conversion, UTF-8 BOM stripping, error line tracking |
-| **GCode/GCodeEngine** | GRBL export: preamble (`G21 G90 G17 G94 G54 G91.1`), G00/G01/G02/G03, redundant rapid suppression using tracked machine position, greedy arc fitting (tolerance 0.01 mm), collinear reduction (0.005 mm), feed rate management (`F{feedZ}` on Z plunge, `F{feedXY}` on first XY), milling/laser mode, `exportDocument()` / `exportSingleFrame()`, optimization stats |
+| **GCode/GCodeEngine** | GRBL export: preamble (`G21 G90 G17 G94 G54 G91.1`), G00/G01/G02/G03, greedy arc fitting (tolerance 0.01 mm), collinear reduction (0.005 mm), feed rate management (`F{feedZ}` on Z plunge, `F{feedXY}` on first XY), milling/laser mode, `exportDocument()` / `exportSingleFrame()`, optimization stats |
 
 ## Tech Stack
 
@@ -284,6 +284,9 @@ M30
 | `export_safe_height` | Safe travel height [mm] | `5,00` |
 | `font_name` | Active LFF font name | `standard` |
 | `grid_visible` | Show grid in canvas | `1` |
+| `rapid_moves_visible` | Show G0 rapid moves in canvas | `0` |
+| `vector_arrows_visible` | Show vector start points and direction arrows | `0` |
+| `hud_visible` | Show canvas HUD overlay | `0` |
 | `workspace_w` / `workspace_h` | Machine workspace dimensions [mm] | `300` / `200` |
 | `editor_width` | Editor panel width [px] | `345` |
 | `window_maximized` | Main window starts maximized | `1` |

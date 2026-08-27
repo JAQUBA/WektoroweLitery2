@@ -43,6 +43,7 @@ std::string    activeFontName = "standard";
 
 std::string    fontsDirectory = "";
 std::string    currentFilePath = "";
+std::string    savedEditorContent = "";
 std::string    lastInputDir  = "";
 std::string    lastOutputFile = "";
 std::string    lastOutputDir = "";
@@ -52,9 +53,9 @@ std::string    exportMaterialThickness = "1,50";
 std::string    exportTextDepth = "0,20";
 std::string    exportSafeHeight = "2,00";
 bool           gridVisible   = true;
-bool           rapidMovesVisible = true;
-bool           hudVisible    = true;
-bool           vectorArrowsVisible = true;
+bool           rapidMovesVisible = false;
+bool           hudVisible    = false;
+bool           vectorArrowsVisible = false;
 
 double         workspaceWidth  = 300.0;
 double         workspaceHeight = 200.0;
@@ -145,7 +146,7 @@ void loadSettings() {
     lastOutputDir = config.getValue("last_output_dir", "");
     gridVisible   = config.getValue("grid_visible", "1") == "1";
     rapidMovesVisible = config.getValue("rapid_moves_visible", "0") == "1";
-    hudVisible    = config.getValue("hud_visible", "0") == "0";
+    hudVisible    = config.getValue("hud_visible", "0") == "1";
     vectorArrowsVisible = config.getValue("vector_arrows_visible", "0") == "1";
 
     // Load tool presets from tools.ini
@@ -360,12 +361,29 @@ void updateWindowTitle() {
     if (window) SetWindowTextW(window->getHandle(), title.c_str());
 }
 
+bool hasUnsavedChanges() {
+    return getEditorText() != savedEditorContent;
+}
+
+bool confirmApplicationClose() {
+    if (!hasUnsavedChanges()) return true;
+
+    int result = MessageBoxW(window->getHandle(),
+        L"Save changes before closing?",
+        L"Unsaved changes",
+        MB_YESNOCANCEL | MB_ICONQUESTION);
+    if (result == IDCANCEL) return false;
+    if (result == IDYES) return doSaveFile();
+    return true;
+}
+
 // ============================================================================
 // Shared actions
 // ============================================================================
 void doNewFile() {
     setEditorTextUI("");
     currentFilePath = "";
+    savedEditorContent = getEditorText();
     updateWindowTitle();
     doRenderPreview();
     if (canvas) canvas->fitToContent();
@@ -389,6 +407,7 @@ void doOpenFile() {
 
     setEditorTextUI(content);
     currentFilePath = path;
+    savedEditorContent = getEditorText();
     lastInputDir = extractDir(path);
     updateWindowTitle();
     doRenderPreview();
@@ -396,32 +415,38 @@ void doOpenFile() {
     logMsg(L"Opened: " + StringUtils::utf8ToWide(path));
 }
 
-void doSaveFile() {
+bool doSaveFile() {
     if (currentFilePath.empty()) {
-        doSaveFileAs();
-        return;
+        return doSaveFileAs();
     }
     std::string content = getEditorText();
     std::ofstream f(currentFilePath, std::ios::binary);
     if (!f.is_open()) {
         logMsg(L"Cannot write file");
-        return;
+        return false;
     }
     f.write(content.data(), content.size());
     f.close();
+    savedEditorContent = getEditorText();
     logMsg(L"Saved: " + StringUtils::utf8ToWide(currentFilePath));
+    return true;
 }
 
-void doSaveFileAs() {
+bool doSaveFileAs() {
     std::string path = FileDialogs::saveFileDialogUTF8(window->getHandle(),
         L"VL2 layout files (*.vl2)\0*.vl2\0Legacy TXT files (*.txt)\0*.txt\0All files (*.*)\0*.*\0",
         L"Save layout file as", L"vl2", lastInputDir);
-    if (path.empty()) return;
+    if (path.empty()) return false;
 
+    std::string previousPath = currentFilePath;
     currentFilePath = path;
     lastInputDir = extractDir(path);
-    doSaveFile();
+    if (!doSaveFile()) {
+        currentFilePath = previousPath;
+        return false;
+    }
     updateWindowTitle();
+    return true;
 }
 
 void doRenderPreview() {
@@ -549,11 +574,10 @@ void doExportGCode() {
         int lines = total - arcs;
         int raw = gce.getTotalRawPoints();
         int dupes = gce.getReducedPoints();
-        int rapidDupes = gce.getReducedRapidMoves();
         wchar_t sBuf[256];
         _snwprintf_s(sBuf, 256, _TRUNCATE,
-            L"Optimization: %d moves (%d arcs G2/G3, %d lines G01) from %d raw points (%d short moves filtered, %d redundant rapids skipped)",
-            total, arcs, lines, raw, dupes, rapidDupes);
+            L"Optimization: %d moves (%d arcs G2/G3, %d lines G01) from %d raw points (%d short moves filtered)",
+            total, arcs, lines, raw, dupes);
         logMsg(sBuf);
     }
 

@@ -62,6 +62,7 @@ extern std::string     fontsDirectory;
 // Application state
 // ============================================================================
 extern std::string     currentFilePath;   // Currently edited layout file (empty = untitled)
+extern std::string     savedEditorContent;
 extern std::string     lastInputDir;
 extern std::string     lastOutputFile;
 extern std::string     lastOutputDir;
@@ -105,6 +106,8 @@ void saveSettings();
 std::string getEditorText();
 void setEditorText(const std::string& text);
 void updateWindowTitle();
+bool hasUnsavedChanges();
+bool confirmApplicationClose();
 
 // File dialog helpers
 std::string extractDir(const std::string& filePath);
@@ -122,8 +125,8 @@ void doFitToWorkspace();
 void doResetView();
 void doNewFile();
 void doOpenFile();
-void doSaveFile();
-void doSaveFileAs();
+bool doSaveFile();
+bool doSaveFileAs();
 void doShowWorkspaceSettings();
 void doRelayout();
 void applyActiveToolPreset();

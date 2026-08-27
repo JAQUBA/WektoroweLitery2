@@ -1,0 +1,78 @@
+# Vector Letters 2 - Tabliczka adresowa (dom i ulica)
+version=1
+
+[template house_number_top]
+type=multiline
+width=250
+height=140
+thickness=2.0
+frame=true
+line1_offset_y=20
+line1_text_height=42
+line1_condensation=100
+line2_offset_y=-25
+line2_text_height=18
+line2_condensation=90
+
+[template address_large]
+type=multiline
+width=250
+height=140
+thickness=1.5
+frame=true
+line1_offset_y=18
+line1_text_height=16
+line1_condensation=90
+line2_offset_y=-18
+line2_text_height=38
+line2_condensation=100
+
+[template address_compact]
+type=multiline
+width=180
+height=100
+thickness=1.2
+frame=true
+line1_offset_y=12
+line1_text_height=12
+line1_condensation=95
+line2_offset_y=-12
+line2_text_height=26
+line2_condensation=100
+
+[template street_single]
+type=plate
+width=220
+height=60
+offset_x=0
+offset_y=0
+text_height=18
+condensation=90
+thickness=1.2
+frame=true
+
+[template house_num_single]
+type=plate
+width=100
+height=100
+offset_x=0
+offset_y=0
+text_height=45
+condensation=100
+thickness=1.8
+frame=true
+
+[row]
+house_number_top: 18 | SZAFRANOWA
+
+[row]
+address_large: UL. KWIATOWA | 24B
+address_large: UL. SŁONECZNA | 105
+
+[row]
+address_compact: UL. LEŚNA | 7
+address_compact: UL. PAROWA | 12/4
+
+[row]
+street_single: UL. LIPOWA
+house_num_single: 42

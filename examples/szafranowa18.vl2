@@ -1,0 +1,12 @@
+# Vector Letters 2 - Tabliczka adresowa z numerem na górze i ulicą na dole
+version=1
+
+[template house_number_top]
+type=multiline
+width=250
+height=140
+thickness=2.0
+frame=true
+
+[row]
+house_number_top: (offset_y=26, height=50, thickness=8) 18 | (offset_y=-25, height=18, condensation=90) SZAFRANOWA

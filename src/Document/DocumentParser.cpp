@@ -118,47 +118,75 @@ static Document parseStreamImpl(std::istream& input,
 
             case 't': {
                 // Nameplate (t = text only, tw = text + frame)
-                currentPlate = Nameplate();
-                currentPlate.diameter = doc.millingDiameter_mm;
-                currentPlate.stepover = doc.stepover_mm;
-
                 if (row.size() > 1) frameW = parseDouble(row[1]);
                 if (row.size() > 2) frameH = parseDouble(row[2]);
                 if (row.size() > 3) shiftX = parseDouble(row[3]);
                 if (row.size() > 4) shiftY = parseDouble(row[4]);
-                if (row.size() > 5) currentPlate.textHeight_mm = parseDouble(row[5]);
-                if (row.size() > 6) currentPlate.condensation = parseDouble(row[6]) / 100.0;
-                if (row.size() > 7) currentPlate.thickness = parseDouble(row[7]);
-                if (row.size() > 3) currentPlate.textOffsetX_mm = shiftX;
-                if (row.size() > 4) currentPlate.textOffsetY_mm = shiftY;
+
+                double textH = 0.0;
+                double cond = 1.0;
+                double thick = 0.0;
+
+                if (row.size() > 5) textH = parseDouble(row[5]);
+                if (row.size() > 6) cond = parseDouble(row[6]) / 100.0;
+                if (row.size() > 7) thick = parseDouble(row[7]);
 
                 std::string text;
                 if (row.size() > 8) text = row[8];
 
-                if (cmd.size() > 1 && cmd[1] == 'w') {
-                    // Plate with frame
-                    currentPlate.hasFrame = true;
-                    currentPlate.frameLeft_mm = xPos;
-                    currentPlate.frameBottom_mm = yPos;
-                    currentPlate.frameWidth_mm = frameW;
-                    currentPlate.frameHeight_mm = frameH;
-                    xPos += currentPlate.frameWidth_mm;
-                    maxRowHeight = currentPlate.frameHeight_mm;
+                bool isFramePlate = (cmd.size() > 1 && cmd[1] == 'w');
+                bool isAdvancePlate = (cmd.size() > 1 && cmd[1] == 'a');
+
+                std::vector<std::string> subLines;
+                if (text.find('|') != std::string::npos) {
+                    std::vector<std::string> rawSub = split(text, '|');
+                    for (const auto& s : rawSub) subLines.push_back(trim(s));
                 } else {
-                    // Text only (no frame)
+                    subLines.push_back(text);
+                }
+
+                int numSubLines = static_cast<int>(subLines.size());
+
+                for (int i = 0; i < numSubLines; i++) {
+                    currentPlate = Nameplate();
+                    currentPlate.diameter = doc.millingDiameter_mm;
+                    currentPlate.stepover = doc.stepover_mm;
+                    currentPlate.textHeight_mm = textH;
+                    currentPlate.condensation = cond;
+                    currentPlate.thickness = thick;
+                    currentPlate.textOffsetX_mm = shiftX;
+
+                    if (numSubLines > 1) {
+                        double autoOff = ((numSubLines - 1) / 2.0 - i) * (textH * 1.5);
+                        currentPlate.textOffsetY_mm = shiftY + autoOff;
+                    } else {
+                        currentPlate.textOffsetY_mm = shiftY;
+                    }
+
                     currentPlate.hasFrame = false;
                     currentPlate.frameLeft_mm = xPos;
                     currentPlate.frameBottom_mm = yPos;
                     currentPlate.frameWidth_mm = frameW;
                     currentPlate.frameHeight_mm = frameH;
-                    if (cmd.size() > 1 && cmd[1] == 'a') {
-                        xPos += currentPlate.frameWidth_mm;
-                        maxRowHeight = currentPlate.frameHeight_mm;
-                    }
+
+                    currentPlate.appendText(subLines[i], font);
+                    currentRow.addNameplate(currentPlate);
                 }
 
-                currentPlate.appendText(text, font);
-                currentRow.addNameplate(currentPlate);
+                if (isFramePlate) {
+                    currentPlate = Nameplate();
+                    currentPlate.hasFrame = true;
+                    currentPlate.frameLeft_mm = xPos;
+                    currentPlate.frameBottom_mm = yPos;
+                    currentPlate.frameWidth_mm = frameW;
+                    currentPlate.frameHeight_mm = frameH;
+                    currentRow.addNameplate(currentPlate);
+                    xPos += frameW;
+                    if (frameH > maxRowHeight) maxRowHeight = frameH;
+                } else if (isAdvancePlate) {
+                    xPos += frameW;
+                    if (frameH > maxRowHeight) maxRowHeight = frameH;
+                }
                 break;
             }
 
@@ -251,16 +279,27 @@ static std::string buildVL2Record(const std::string& command,
                                   const std::map<std::string, std::string>& values,
                                   const std::string& text) {
     auto dimensions = vl2Size(values);
-    std::string textHeight = vl2Value(values, "text_height",
-        vl2Value(values, "text", "0"));
-    std::string offsetX = vl2Value(values, "offset_x", "0");
-    std::string offsetY = vl2Value(values, "offset_y", "0");
+    std::string textHeight = vl2Value(values, "text_height");
+    if (textHeight.empty()) {
+        std::string txtVal = vl2Value(values, "text");
+        double d = 0.0;
+        if (!txtVal.empty() && NumberUtils::tryParseDouble(txtVal, d)) {
+            textHeight = txtVal;
+        } else {
+            textHeight = "0";
+        }
+    }
+    std::string offsetX = vl2Value(values, "offset_x");
+    std::string offsetY = vl2Value(values, "offset_y");
     std::string offset = vl2Value(values, "offset");
     size_t separator = offset.find(',');
     if (separator != std::string::npos) {
-        offsetX = trim(offset.substr(0, separator));
-        offsetY = trim(offset.substr(separator + 1));
+        if (offsetX.empty()) offsetX = trim(offset.substr(0, separator));
+        if (offsetY.empty()) offsetY = trim(offset.substr(separator + 1));
     }
+    if (offsetX.empty()) offsetX = "0";
+    if (offsetY.empty()) offsetY = "0";
+
     return command + ";" + dimensions.first + ";" + dimensions.second + ";" +
         offsetX + ";" + offsetY + ";" +
         textHeight + ";" +
@@ -280,12 +319,51 @@ static void addCompactOptions(std::map<std::string, std::string>& item,
         if (equal != std::string::npos) {
             std::string key = toLower(trim(option.substr(0, equal)));
             std::string value = trim(option.substr(equal + 1));
-            if (key == "text") key = "text_height";
+            if (key == "text" || key == "height") key = "text_height";
+            else if (key == "cond") key = "condensation";
+            else if (key == "thick") key = "thickness";
             item[key] = value;
         } else if (!option.empty() && item.find("offset") != item.end()) {
             item["offset"] += "," + option;
         }
         start = end + 1;
+    }
+}
+
+static void parseLineOptions(const std::string& rawLine,
+                             std::string& outText,
+                             std::map<std::string, std::string>& outOptions) {
+    outText = trim(rawLine);
+    outOptions.clear();
+
+    size_t openParen = outText.find('(');
+    while (openParen != std::string::npos) {
+        size_t closeParen = outText.find(')', openParen);
+        if (closeParen == std::string::npos) break;
+
+        std::string inner = outText.substr(openParen + 1, closeParen - openParen - 1);
+        if (inner.find('=') != std::string::npos) {
+            size_t start = 0;
+            while (start < inner.size()) {
+                size_t end = inner.find(',', start);
+                if (end == std::string::npos) end = inner.size();
+                std::string opt = trim(inner.substr(start, end - start));
+                size_t eq = opt.find('=');
+                if (eq != std::string::npos) {
+                    std::string key = toLower(trim(opt.substr(0, eq)));
+                    std::string val = trim(opt.substr(eq + 1));
+                    if (key == "text" || key == "height") key = "text_height";
+                    else if (key == "cond") key = "condensation";
+                    else if (key == "thick") key = "thickness";
+                    outOptions[key] = val;
+                }
+                start = end + 1;
+            }
+            outText = trim(outText.substr(0, openParen) + " " + outText.substr(closeParen + 1));
+            openParen = outText.find('(');
+        } else {
+            openParen = outText.find('(', closeParen + 1);
+        }
     }
 }
 
@@ -296,26 +374,46 @@ static bool parseCompactItem(const std::string& line,
 
     std::string selector = trim(line.substr(0, colon));
     std::string payload = trim(line.substr(colon + 1));
-    if (selector.empty() || payload.empty()) return false;
+    if (payload.empty()) return false;
 
     size_t optionsStart = selector.find('(');
     if (optionsStart != std::string::npos && selector.back() == ')') {
         std::string options = selector.substr(optionsStart + 1,
             selector.size() - optionsStart - 2);
-        selector = trim(selector.substr(0, optionsStart));
-        item["use"] = selector;
+        std::string selectorName = toLower(trim(selector.substr(0, optionsStart)));
+        if (selectorName == "plate") {
+            item["use"] = "";
+            item["__inline"] = "true";
+        } else {
+            item["use"] = selectorName;
+        }
         addCompactOptions(item, options);
+    } else if (selector.empty()) {
+        item["use"] = "";
     } else {
-        item["use"] = selector;
+        item["use"] = toLower(selector);
     }
 
     std::vector<std::string> lines = split(payload, '|');
-    if (lines.size() == 1) {
-        item["text"] = trim(lines[0]);
-    } else {
-        for (size_t i = 0; i < lines.size(); i++)
-            item["line" + std::to_string(i + 1)] = trim(lines[i]);
+    std::string cleanPayload = "";
+
+    for (size_t i = 0; i < lines.size(); i++) {
+        std::string lineText;
+        std::map<std::string, std::string> lineOpts;
+        parseLineOptions(lines[i], lineText, lineOpts);
+
+        std::string lineKey = "line" + std::to_string(i + 1);
+        item[lineKey] = lineText;
+
+        for (const auto& opt : lineOpts) {
+            item[lineKey + "_" + opt.first] = opt.second;
+        }
+
+        if (i > 0) cleanPayload += " | ";
+        cleanPayload += lineText;
     }
+
+    item["text"] = cleanPayload;
     return true;
 }
 
@@ -324,16 +422,28 @@ static void appendVL2Item(std::vector<std::string>& legacyLines,
                           const std::map<std::string, std::string>& item,
                           int lineNumber,
                           std::vector<int>* errorLines) {
+    bool inlineItem = vl2Value(item, "__inline") == "true";
     std::string templateName = vl2Value(item, "use", vl2Value(item, "plate"));
-    auto templateIt = templates.find(toLower(templateName));
-    if (templateIt == templates.end()) {
-        if (errorLines) errorLines->push_back(lineNumber);
-        return;
+    std::map<std::string, std::string> values;
+
+    if (inlineItem) {
+        auto defaultIt = templates.find("__default__");
+        if (defaultIt != templates.end()) values = defaultIt->second.values;
+    } else {
+        auto templateIt = templates.find(toLower(templateName));
+        if (templateIt == templates.end() && templateName.empty()) {
+            templateIt = templates.find("__default__");
+        }
+        if (templateIt == templates.end()) {
+            if (errorLines) errorLines->push_back(lineNumber);
+            return;
+        }
+        values = templateIt->second.values;
     }
 
-    std::map<std::string, std::string> values = templateIt->second.values;
     for (const auto& pair : item) {
-        if (pair.first != "use" && pair.first != "plate")
+        if (pair.first != "use" && pair.first != "plate" &&
+            pair.first != "__inline")
             values[pair.first] = pair.second;
     }
 
@@ -344,38 +454,104 @@ static void appendVL2Item(std::vector<std::string>& legacyLines,
         return;
     }
 
-    if (type == "multiline") {
-        int lineIndex = 1;
-        bool emittedLine = false;
-        while (true) {
-            std::string key = "line" + std::to_string(lineIndex);
-            auto lineIt = item.find(key);
-            std::string text = lineIt != item.end()
-                ? lineIt->second : vl2Value(values, key);
-            if (lineIt == item.end() && !hasVL2Value(values, key)) break;
+    // Gather line texts
+    std::vector<std::string> lineTexts;
+
+    int checkIdx = 1;
+    while (true) {
+        std::string key = "line" + std::to_string(checkIdx);
+        auto lineIt = item.find(key);
+        std::string lineVal = lineIt != item.end() ? lineIt->second : vl2Value(values, key);
+        if (lineIt == item.end() && !hasVL2Value(values, key)) break;
+        lineTexts.push_back(lineVal);
+        checkIdx++;
+    }
+
+    if (lineTexts.empty()) {
+        std::string rawText = vl2Value(item, "text", vl2Value(values, "text"));
+        if (rawText.find('|') != std::string::npos) {
+            std::vector<std::string> splitLines = split(rawText, '|');
+            for (auto& s : splitLines) {
+                lineTexts.push_back(trim(s));
+            }
+        } else if (!rawText.empty()) {
+            lineTexts.push_back(rawText);
+        }
+    }
+
+    bool hasFrame = toLower(vl2Value(values, "frame", "true")) != "false";
+
+    if (lineTexts.size() <= 1) {
+        std::string text = lineTexts.empty() ? "" : lineTexts[0];
+        std::string command = hasFrame ? "tw" : "ta";
+        std::string prefix = "line1_";
+        for (const auto& pair : values) {
+            if (pair.first.rfind(prefix, 0) == 0) {
+                std::string k = pair.first.substr(prefix.size());
+                if (k != "text") values[k] = pair.second;
+            }
+        }
+        legacyLines.push_back(buildVL2Record(command, values, text));
+    } else {
+        int numLines = static_cast<int>(lineTexts.size());
+
+        std::string baseOffStr = vl2Value(values, "offset_y");
+        std::string offsetStr = vl2Value(values, "offset");
+        size_t sep = offsetStr.find(',');
+        if (baseOffStr.empty() && sep != std::string::npos) {
+            baseOffStr = trim(offsetStr.substr(sep + 1));
+        }
+        double baseOffsetY = 0.0;
+        if (!baseOffStr.empty()) {
+            NumberUtils::tryParseDouble(baseOffStr, baseOffsetY);
+        }
+
+        for (int i = 0; i < numLines; i++) {
+            int lineIndex = i + 1;
+            std::string text = lineTexts[i];
 
             std::map<std::string, std::string> lineValues = values;
             std::string prefix = "line" + std::to_string(lineIndex) + "_";
+
             for (const auto& pair : values) {
                 if (pair.first.rfind(prefix, 0) == 0)
                     lineValues[pair.first.substr(prefix.size())] = pair.second;
             }
-            legacyLines.push_back(buildVL2Record("t", lineValues, text));
-            emittedLine = true;
-            lineIndex++;
-        }
-        if (!emittedLine) {
-            if (errorLines) errorLines->push_back(lineNumber);
-            return;
-        }
-        auto dimensions = vl2Size(values);
-        legacyLines.push_back("w;" + dimensions.first + ";" + dimensions.second);
-        return;
-    }
 
-    std::string text = vl2Value(item, "text", vl2Value(values, "text"));
-    std::string command = toLower(vl2Value(values, "frame", "true")) == "false" ? "ta" : "tw";
-    legacyLines.push_back(buildVL2Record(command, values, text));
+            bool hasExplicitOffset = hasVL2Value(values, prefix + "offset_y") ||
+                                     hasVL2Value(item, prefix + "offset_y") ||
+                                     hasVL2Value(item, "line" + std::to_string(lineIndex) + "_offset_y");
+
+            if (!hasExplicitOffset) {
+                double lineTextHeight = 6.0;
+                std::string hStr = vl2Value(lineValues, "text_height");
+                if (hStr.empty()) {
+                    std::string tStr = vl2Value(lineValues, "text");
+                    double d = 0.0;
+                    if (!tStr.empty() && NumberUtils::tryParseDouble(tStr, d)) {
+                        hStr = tStr;
+                    }
+                }
+                if (!hStr.empty()) {
+                    NumberUtils::tryParseDouble(hStr, lineTextHeight);
+                }
+                if (lineTextHeight <= 0.0) lineTextHeight = 6.0;
+
+                double autoOffsetY = baseOffsetY + ((numLines - 1) / 2.0 - i) * (lineTextHeight * 1.5);
+                std::ostringstream ss;
+                ss << autoOffsetY;
+                lineValues["offset_y"] = ss.str();
+            }
+
+            std::string cmd = (!hasFrame && i == numLines - 1) ? "ta" : "t";
+            legacyLines.push_back(buildVL2Record(cmd, lineValues, text));
+        }
+
+        if (hasFrame) {
+            auto dimensions = vl2Size(values);
+            legacyLines.push_back("w;" + dimensions.first + ";" + dimensions.second);
+        }
+    }
 }
 
 static Document parseVL2Impl(const std::string& content,
@@ -419,6 +595,9 @@ static Document parseVL2Impl(const std::string& content,
                 headerStream >> currentTemplate;
                 currentTemplate = toLower(currentTemplate);
                 templates[currentTemplate] = VL2Template();
+            } else if (section == "default") {
+                currentTemplate = "__default__";
+                templates[currentTemplate] = VL2Template();
             } else if (section == "row") {
                 if (rowSeen) legacyLines.push_back("l");
                 rowSeen = true;
@@ -449,7 +628,8 @@ static Document parseVL2Impl(const std::string& content,
         std::string key = toLower(trim(line.substr(0, equal)));
         std::string value = trim(line.substr(equal + 1));
 
-        if (section == "template" && !currentTemplate.empty()) {
+        if ((section == "template" || section == "default") &&
+            !currentTemplate.empty()) {
             if (key == "text") key = "text_height";
             templates[currentTemplate].values[key] = value;
         } else if (section == "row") {

@@ -41,6 +41,7 @@ static int  splitterDragStartEditorW = 0;
 static const UINT_PTR RENDER_TIMER_ID = 42;
 static const UINT RENDER_DELAY_MS = 300;
 static bool editorChangeIgnore = false;  // suppress EN_CHANGE during setEditorText
+static bool closeApproved = false;
 static const UINT_PTR ERROR_HIGHLIGHT_TIMER_ID = 43;
 static const UINT ERROR_HIGHLIGHT_DELAY_MS = 120;
 static ULONGLONG lastEditorSelectionTick = 0;
@@ -95,6 +96,11 @@ static LRESULT CALLBACK EditorParentSubclassProc(
             }
             return 0;
         }
+    }
+
+    if (msg == WM_CLOSE && !closeApproved) {
+        if (!confirmApplicationClose()) return 0;
+        closeApproved = true;
     }
 
     return DefSubclassProc(hwnd, msg, wParam, lParam);

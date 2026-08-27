@@ -57,6 +57,7 @@ It is built for practical workshop use: quick editing, instant visual feedback, 
 - tool preset popup and management dialog
 - configurable machine workspace bounds
 - detached log window
+- confirmation before closing when the layout has unsaved changes
 
 ## Why It Is Useful
 
@@ -132,6 +133,10 @@ lib_deps =
 5. Inspect the preview.
 6. Export G-Code.
 
+When closing the application after editing a layout, choose `Save`, `Don't Save`,
+or `Cancel` in the confirmation dialog. The same check is used by `File > Exit`
+and the window close button.
+
 ## User Workflow
 
 ### Typical Session
@@ -180,6 +185,33 @@ means text height; the row text remains after the colon.
 In VL2, `thickness` is the real stroke width in **mm** (unlike the legacy TXT
 format below, where `thickness` is an abstract stroke-width unit); the parser
 converts the mm value internally (`units = mm * 100 / text_height_mm`).
+
+Layouts without named templates can define shared parameters in a `[default]`
+section and omit the selector:
+
+```text
+[default]
+type=plate
+size=100x30
+text_height=8
+thickness=0.4
+frame=true
+
+[row]
+: POMPA 1
+: POMPA 2
+```
+
+A single plate can define its parameters inline with `plate(...)`:
+
+```text
+[row]
+plate(size=80x20,text=6,frame=true): STEROWANIE
+```
+
+Inline values inherit from `[default]` when that section exists. A selector
+such as `pump: POMPA 1` still refers to the named `[template pump]`. Without
+`[default]`, an empty selector is reported as a parse error.
 
 Example:
 
