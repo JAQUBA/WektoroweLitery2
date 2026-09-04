@@ -24,6 +24,14 @@ public:
 
     void addRow(const TableRow& row) { m_rows.push_back(row); }
 
+    void rotate90() {
+        double minX = 0.0, minY = 0.0, maxX = 0.0, maxY = 0.0;
+        if (!getBoundingBox(minX, minY, maxX, maxY)) return;
+        for (auto& row : m_rows)
+            for (auto& plate : row.getNameplates())
+                plate.rotate90(maxX);
+    }
+
     const std::vector<TableRow>& getRows() const { return m_rows; }
 
     bool getBoundingBox(double& minX, double& minY, double& maxX, double& maxY) const {

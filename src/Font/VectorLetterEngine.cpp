@@ -469,6 +469,16 @@ void VectorLetterEngine::addY(double n) {
             pt.y += n;
 }
 
+void VectorLetterEngine::rotate90(double pivotX) {
+    double scalePivotX = pivotX * m_scale;
+    for (auto& seg : m_vectorSegments)
+        for (auto& pt : seg) {
+            double oldX = pt.X;
+            pt.X = pt.Y;
+            pt.Y = scalePivotX - oldX;
+        }
+}
+
 // ============================================================================
 // LFF Font Glyph Constructor
 // ============================================================================

@@ -31,6 +31,7 @@ public:
     Nameplate() = default;
 
     void appendText(const std::string& txt, const LffFont& font);
+    void rotate90(double pivotX);
     bool getBoundingBox(double& minX, double& minY, double& maxX, double& maxY) const;
 
     const std::vector<VectorLetterEngine>& getLetters() const { return m_letters; }

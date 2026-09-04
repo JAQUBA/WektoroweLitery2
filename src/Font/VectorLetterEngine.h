@@ -47,6 +47,7 @@ public:
     void addX(double n);
     void multiplyY(double n);
     void addY(double n);
+    void rotate90(double pivotX);
 
     // Access to results
     const std::vector<PointCollection>& getPointCollections() const;

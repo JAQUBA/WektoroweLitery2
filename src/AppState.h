@@ -76,6 +76,7 @@ extern bool            rapidMovesVisible;
 extern bool            hudVisible;
 extern bool            vectorArrowsVisible;
 extern bool            repeatFrameCut;
+extern bool            swapGenerationAxes;
 
 // Tool presets
 extern std::vector<ToolPreset> toolPresets;
@@ -122,6 +123,7 @@ void doToggleRapidMoves();
 void doToggleHUD();
 void doToggleVectorArrows();
 void doToggleRepeatFrameCut();
+void doToggleGenerationAxes();
 void doFitToContent();
 void doFitToWorkspace();
 void doResetView();

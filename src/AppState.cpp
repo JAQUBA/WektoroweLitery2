@@ -57,6 +57,7 @@ bool           rapidMovesVisible = false;
 bool           hudVisible    = false;
 bool           vectorArrowsVisible = false;
 bool           repeatFrameCut = false;
+bool           swapGenerationAxes = false;
 
 double         workspaceWidth  = 300.0;
 double         workspaceHeight = 200.0;
@@ -150,6 +151,7 @@ void loadSettings() {
     hudVisible    = config.getValue("hud_visible", "0") == "1";
     vectorArrowsVisible = config.getValue("vector_arrows_visible", "0") == "1";
     repeatFrameCut = config.getValue("repeat_frame_cut", "0") == "1";
+    swapGenerationAxes = config.getValue("swap_generation_axes", "0") == "1";
 
     // Load tool presets from tools.ini
     int toolCount = 0;
@@ -258,6 +260,7 @@ void saveSettings() {
     config.setValue("hud_visible", hudVisible ? "1" : "0");
     config.setValue("vector_arrows_visible", vectorArrowsVisible ? "1" : "0");
     config.setValue("repeat_frame_cut", repeatFrameCut ? "1" : "0");
+    config.setValue("swap_generation_axes", swapGenerationAxes ? "1" : "0");
     config.setValue("font_name", activeFontName);
 
     // Save tool presets to tools.ini
@@ -480,6 +483,8 @@ void doRenderPreview() {
 
     std::vector<int> errorLines;
     Document doc = DocumentParser::parseString(content, *activeFont, diam, step, &errorLines);
+    if (swapGenerationAxes)
+        doc.rotate90();
     currentDocument = new Document(doc);
 
     highlightEditorErrors(errorLines);
@@ -537,6 +542,8 @@ void doExportGCode() {
     }
 
     Document exportDoc = DocumentParser::parseString(content, *activeFont, diam, step);
+    if (swapGenerationAxes)
+        exportDoc.rotate90();
     if (exportDoc.getRows().empty()) {
         logMsg(L"Document parsing failed or returned no rows");
         return;
@@ -636,6 +643,13 @@ void doToggleVectorArrows() {
 
 void doToggleRepeatFrameCut() {
     repeatFrameCut = !repeatFrameCut;
+}
+
+void doToggleGenerationAxes() {
+    swapGenerationAxes = !swapGenerationAxes;
+    doRenderPreview();
+    if (canvas) canvas->fitToContent();
+    saveSettings();
 }
 
 void doFitToContent() {

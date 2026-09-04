@@ -51,7 +51,7 @@ WektoroweLitery2/
 | **Font/VectorPoint** | Point struct: `x`, `y`, `alphaPrimary`, `alphaMean`, `widthFactor`, `hasSerif`, `isTerminator`, `options` |
 | **Font/LffFont** | LFF font parser: `load(path)` parses glyphs (header, polylines, arcs, references), `getGlyph(codePoint)`, `getLetterSpacing()`, `listFonts(dir)`. Structs: `LffGlyph` (codePoint, width, strokes), `LffPoint` (x, y, bulge) |
 | **Font/VectorLetterEngine** | Core engine: constructs from `LffGlyph` with scale/offset/tool params, `generateFullPath()` → `PointCollection` output. Steps: `computeAlphaPrimary()` → `computeAlphaMean()` → `drawSegmentAxis()` → `drawSegmentEnvelope()` (forward pass, endcap, reverse, startcap, multi-pass). Transforms: `multiplyX()`, `addX()` |
-| **Document/Document** | Fields: `millingDiameter_mm`, `stepover_mm`, `materialThickness_mm`, `textDepth_mm`, `safeHeight_mm`, `feedXY_mm`, `feedZ_mm`, `laserMode`. Methods: `addRow()`, `getRows()` |
+| **Document/Document** | Fields: `millingDiameter_mm`, `stepover_mm`, `materialThickness_mm`, `textDepth_mm`, `safeHeight_mm`, `feedXY_mm`, `feedZ_mm`, `laserMode`. Methods: `addRow()`, `getRows()`, `swapAxes()` for optional X/Y generation transposition around X0/Y0 |
 | **Document/TableRow** | Row of `Nameplate` objects: `addNameplate()`, `getNameplates()` |
 | **Document/Nameplate** | Fields: frame geometry, `text`, `textHeight_mm`, `condensation`, `thickness`, `diameter`, `stepover`, `hasFrame`. Method: `appendText(text, font)` — UTF-8 → Unicode, loads glyphs, applies scaling/condensation, centers in frame, generates envelope via VectorLetterEngine |
 | **Document/DocumentParser** | Parses semicolon-separated layout files: `t`/`tw`/`w`/`l` commands, decimal comma→dot conversion, UTF-8 BOM stripping, error line tracking |
@@ -104,7 +104,7 @@ Uses Tokyo Night base from JQB_WindowsLib (`ThemeTokyoNight.h`), extended with a
 ```
 File      → New | Open... | Save | Save As... | Export G-Code | Exit
 View      → Show grid | Reset view | Log window
-Settings  → Tool presets... | Machine workspace size...
+Settings  → Rotate generation 90 deg (swap X/Y) | Tool presets... | Machine workspace size...
 Help      → About...
 ```
 
@@ -288,6 +288,7 @@ M30
 | `vector_arrows_visible` | Show vector start points and direction arrows | `0` |
 | `hud_visible` | Show canvas HUD overlay | `0` |
 | `repeat_frame_cut` | Cut each frame contour twice when exporting G-Code | `0` |
+| `swap_generation_axes` | Rotate generation 90 degrees around X0/Y0 while keeping labels readable | `0` |
 | `workspace_w` / `workspace_h` | Machine workspace dimensions [mm] | `300` / `200` |
 | `editor_width` | Editor panel width [px] | `345` |
 | `window_maximized` | Main window starts maximized | `1` |

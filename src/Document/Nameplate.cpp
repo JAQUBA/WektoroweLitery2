@@ -3,6 +3,7 @@
 // ============================================================================
 #include "Nameplate.h"
 #include <cmath>
+#include <algorithm>
 #include <windows.h>
 
 // Scale factor: LFF height (9 units) → internal units (3000)
@@ -109,6 +110,35 @@ void Nameplate::appendText(const std::string& txt, const LffFont& font) {
         }
         m_letters[i].generateFullPath();
     }
+}
+
+void Nameplate::rotate90(double pivotX) {
+    auto rotatePoint = [pivotX](double x, double y) {
+        return std::pair<double, double>(y, pivotX - x);
+    };
+
+    auto bottomLeft = rotatePoint(frameLeft_mm, frameBottom_mm);
+    auto topRight = rotatePoint(frameLeft_mm + frameWidth_mm,
+                                frameBottom_mm + frameHeight_mm);
+    double newLeft = std::min(bottomLeft.first, topRight.first);
+    double newBottom = std::min(bottomLeft.second, topRight.second);
+    double newRight = std::max(bottomLeft.first, topRight.first);
+    double newTop = std::max(bottomLeft.second, topRight.second);
+    frameLeft_mm = newLeft;
+    frameBottom_mm = newBottom;
+    frameWidth_mm = newRight - newLeft;
+    frameHeight_mm = newTop - newBottom;
+
+    auto textPosition = rotatePoint(textLeft_mm, textBottom_mm);
+    textLeft_mm = textPosition.first;
+    textBottom_mm = textPosition.second;
+    std::swap(textOffsetX_mm, textOffsetY_mm);
+    m_frameCenterX_mm = (frameLeft_mm + frameWidth_mm) / 2.0;
+    m_frameCenterY_mm = (frameBottom_mm + frameHeight_mm) / 2.0;
+    if (textHeight_mm <= 0.0) return;
+    double pivotXInternal = pivotX * (SHIFT_Y_BASE / textHeight_mm);
+    for (auto& letter : m_letters)
+        letter.rotate90(pivotXInternal);
 }
 
 bool Nameplate::getBoundingBox(double& outMinX, double& outMinY, double& outMaxX, double& outMaxY) const {

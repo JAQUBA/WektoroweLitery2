@@ -13,6 +13,7 @@ public:
 
     void addNameplate(const Nameplate& plate) { m_plates.push_back(plate); }
 
+    std::vector<Nameplate>& getNameplates() { return m_plates; }
     const std::vector<Nameplate>& getNameplates() const { return m_plates; }
 
 private:

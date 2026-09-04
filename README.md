@@ -56,6 +56,7 @@ It is built for practical workshop use: quick editing, instant visual feedback, 
 - real-time preview with zoom, pan, and reset
 - tool preset popup and management dialog
 - configurable machine workspace bounds
+- optional 90-degree generation rotation around X0/Y0, keeping labels readable
 - detached log window
 - confirmation before closing when the layout has unsaved changes
 
@@ -153,7 +154,7 @@ and the window close button.
 ```text
 File      → New | Open... | Save | Save As... | Export G-Code | Exit
 View      → Show grid | Reset view | Log window
-Settings  → Tool presets... | Machine workspace size...
+Settings  → Rotate generation 90 deg (swap X/Y) | Tool presets... | Machine workspace size...
 Help      → About...
 ```
 
