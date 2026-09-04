@@ -207,17 +207,20 @@ void GCodeEngine::exportDocument(const std::string& fileName, const Document& do
 
             // Draw frame if present
             if (plate.hasFrame) {
-                idleZ(safeZ);
-                idleXY(plate.frameLeft_mm, plate.frameBottom_mm);
+                int framePasses = doc.repeatFrameCut ? 2 : 1;
+                for (int pass = 0; pass < framePasses; ++pass) {
+                    idleZ(safeZ);
+                    idleXY(plate.frameLeft_mm, plate.frameBottom_mm);
 
-                workingZ(cutZ);
-                m_needFeedXY = true;
+                    workingZ(cutZ);
+                    m_needFeedXY = true;
 
-                workingXY(plate.frameLeft_mm, plate.frameBottom_mm + plate.frameHeight_mm);
-                workingXY(plate.frameLeft_mm + plate.frameWidth_mm,
-                          plate.frameBottom_mm + plate.frameHeight_mm);
-                workingXY(plate.frameLeft_mm + plate.frameWidth_mm, plate.frameBottom_mm);
-                workingXY(plate.frameLeft_mm, plate.frameBottom_mm);
+                    workingXY(plate.frameLeft_mm, plate.frameBottom_mm + plate.frameHeight_mm);
+                    workingXY(plate.frameLeft_mm + plate.frameWidth_mm,
+                              plate.frameBottom_mm + plate.frameHeight_mm);
+                    workingXY(plate.frameLeft_mm + plate.frameWidth_mm, plate.frameBottom_mm);
+                    workingXY(plate.frameLeft_mm, plate.frameBottom_mm);
+                }
             }
 
             // Draw letter vectors (optimized with G2/G3 arcs)

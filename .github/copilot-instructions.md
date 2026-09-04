@@ -287,6 +287,7 @@ M30
 | `rapid_moves_visible` | Show G0 rapid moves in canvas | `0` |
 | `vector_arrows_visible` | Show vector start points and direction arrows | `0` |
 | `hud_visible` | Show canvas HUD overlay | `0` |
+| `repeat_frame_cut` | Cut each frame contour twice when exporting G-Code | `0` |
 | `workspace_w` / `workspace_h` | Machine workspace dimensions [mm] | `300` / `200` |
 | `editor_width` | Editor panel width [px] | `345` |
 | `window_maximized` | Main window starts maximized | `1` |

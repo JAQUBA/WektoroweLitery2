@@ -45,6 +45,8 @@ void createAppMenu(SimpleWindow* win) {
 
     // --- Settings ---
     menuBar->addMenu(L"Settings", [](PopupMenu& m) {
+        m.addCheckItem(L"Repeat frame cut", repeatFrameCut, [](bool) { doToggleRepeatFrameCut(); });
+        m.addSeparator();
         m.addItem(L"Tool presets...", []() { doShowToolPresets(); });
         m.addItem(L"Machine workspace size...", []() { doShowWorkspaceSettings(); });
     });

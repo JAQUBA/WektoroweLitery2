@@ -342,6 +342,8 @@ Persistent configuration lives in:
 - `config.ini` for application state
 - `tools.ini` for tool presets
 
+Application flags include `repeat_frame_cut`, which keeps the frame contour path doubled during export when enabled. The default is `0` (single pass); setting it to `1` makes the frame cut repeat twice in the generated G-Code.
+
 Presets bundle values such as:
 
 - tool diameter

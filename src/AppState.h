@@ -75,6 +75,7 @@ extern bool            gridVisible;
 extern bool            rapidMovesVisible;
 extern bool            hudVisible;
 extern bool            vectorArrowsVisible;
+extern bool            repeatFrameCut;
 
 // Tool presets
 extern std::vector<ToolPreset> toolPresets;
@@ -120,6 +121,7 @@ void doToggleGrid();
 void doToggleRapidMoves();
 void doToggleHUD();
 void doToggleVectorArrows();
+void doToggleRepeatFrameCut();
 void doFitToContent();
 void doFitToWorkspace();
 void doResetView();

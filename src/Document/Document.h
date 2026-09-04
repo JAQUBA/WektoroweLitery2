@@ -18,6 +18,7 @@ public:
     double feedZ_mm = 100.0;
     double spindleRPM = 0.0;
     bool laserMode = false;
+    bool repeatFrameCut = false;
 
     Document() = default;
 

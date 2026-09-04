@@ -56,6 +56,7 @@ bool           gridVisible   = true;
 bool           rapidMovesVisible = false;
 bool           hudVisible    = false;
 bool           vectorArrowsVisible = false;
+bool           repeatFrameCut = false;
 
 double         workspaceWidth  = 300.0;
 double         workspaceHeight = 200.0;
@@ -148,6 +149,7 @@ void loadSettings() {
     rapidMovesVisible = config.getValue("rapid_moves_visible", "0") == "1";
     hudVisible    = config.getValue("hud_visible", "0") == "1";
     vectorArrowsVisible = config.getValue("vector_arrows_visible", "0") == "1";
+    repeatFrameCut = config.getValue("repeat_frame_cut", "0") == "1";
 
     // Load tool presets from tools.ini
     int toolCount = 0;
@@ -255,6 +257,7 @@ void saveSettings() {
     config.setValue("rapid_moves_visible", rapidMovesVisible ? "1" : "0");
     config.setValue("hud_visible", hudVisible ? "1" : "0");
     config.setValue("vector_arrows_visible", vectorArrowsVisible ? "1" : "0");
+    config.setValue("repeat_frame_cut", repeatFrameCut ? "1" : "0");
     config.setValue("font_name", activeFontName);
 
     // Save tool presets to tools.ini
@@ -542,6 +545,7 @@ void doExportGCode() {
     exportDoc.materialThickness_mm = matThick;
     exportDoc.textDepth_mm = textDep;
     exportDoc.safeHeight_mm = safeH;
+    exportDoc.repeatFrameCut = repeatFrameCut;
 
     // Apply feed rates from active tool preset
     if (activeToolIndex >= 0 && activeToolIndex < (int)toolPresets.size()) {
@@ -628,6 +632,10 @@ void doToggleVectorArrows() {
     if (canvas) {
         canvas->setVectorArrowsVisible(vectorArrowsVisible);
     }
+}
+
+void doToggleRepeatFrameCut() {
+    repeatFrameCut = !repeatFrameCut;
 }
 
 void doFitToContent() {
